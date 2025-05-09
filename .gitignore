@@ -1,0 +1,66 @@
+# Abhängigkeiten
+/node_modules
+/.pnp
+.pnp.js
+
+# Umgebungsvariablen
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Log-Dateien
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs
+*.log
+
+# Laufzeit-Daten
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Verzeichnis für instrumentierte Libs mit Istanbul/NYC
+coverage
+.nyc_output
+
+# Build-Verzeichnisse
+/build
+/dist
+
+# Debug
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Betriebssystem-Dateien
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporäre Dateien
+*.tmp
+*.temp
+.cache
+
+# Datenbank-Dateien
+*.sqlite
+*.db
+
+# Uploads & Medien (wenn lokal gespeichert)
+/uploads
+/media
+
+# Optional: Jest Snapshot Dateien
+__snapshots__/
+
+# Optional: TypeScript Kompilierungsdateien
+*.tsbuildinfo
