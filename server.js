@@ -42,21 +42,13 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // API-Routen
 app.use('/api', routes);
 
-// Fallback-Route für das Frontend (für SPA)
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
-  });
-}
 
 // Globaler Fehlerhandler
 app.use(errorHandler);
 
 // MongoDB-Verbindung herstellen
 mongoose
-  .connect(process.env.MONGODB_URI, {
+  .connect(process.env.MONGODB_URI || config.mongoUri, {
     useNewUrlParser: true,
     useUnifiedTopology: true
   })

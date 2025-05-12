@@ -17,6 +17,24 @@ const mitarbeiterRoutes = require('./mitarbeiter.routes');
 const benachrichtigungRoutes = require('./benachrichtigung.routes');
 const uploadRoutes = require('./upload.routes');
 
+// Health-Check-Route für API-Verfügbarkeitsprüfung
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'hummert-umzug-api'
+  });
+});
+
+// Root-Route für den Fall, dass jemand direkt die API-Basis aufruft
+router.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'Hummert Umzug API Server',
+    version: '1.0.0',
+    status: 'online'
+  });
+});
+
 // Zuweisen der Routen
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -32,5 +50,10 @@ router.use('/uploads', uploadRoutes);
 
 // Route zum Löschen aller Beispieldaten (nur für Admins)
 router.delete('/delete-example-data', protect, admin, fileController.deleteAllExampleData);
+
+// Fallback für unbekannte API-Routen
+router.use('*', (req, res) => {
+  res.status(404).json({ message: 'API-Endpunkt nicht gefunden' });
+});
 
 module.exports = router;
