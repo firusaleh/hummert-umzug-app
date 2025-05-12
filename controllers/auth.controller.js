@@ -3,6 +3,11 @@ const { User } = require('../models'); // Zentraler Import
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 
+// Hilfsfunktion, um besser zu verstehen, was vom Frontend gesendet wird
+const logRequestBody = (req) => {
+  console.log('Request Body:', JSON.stringify(req.body, null, 2));
+};
+
 // Erstellt JWT Token
 const createToken = (user) => {
   return jwt.sign(
@@ -14,12 +19,19 @@ const createToken = (user) => {
 
 exports.register = async (req, res) => {
   try {
+    // Request-Body für Debugging loggen
+    logRequestBody(req);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, email, password } = req.body;
+    // Hier ist der wichtige Fix: Akzeptiere 'name' oder 'username'
+    const { email, password } = req.body;
+    const username = req.body.username || req.body.name || email.split('@')[0];
+
+    console.log('Verwendeter Benutzername:', username);
 
     // Prüfen, ob Benutzer bereits existiert
     const userExists = await User.findOne({ 
@@ -55,12 +67,29 @@ exports.register = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Serverfehler bei der Registrierung', error: error.message });
+    console.error('Fehler bei der Benutzerregistrierung:', error);
+    
+    // Verbesserte Fehlerbehandlung
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        message: 'Validierungsfehler',
+        errors: validationErrors
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Serverfehler bei der Registrierung', 
+      error: error.message 
+    });
   }
 };
 
 exports.login = async (req, res) => {
   try {
+    // Request-Body für Debugging loggen
+    logRequestBody(req);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -98,6 +127,7 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Fehler beim Login:', error);
     res.status(500).json({ message: 'Serverfehler beim Login', error: error.message });
   }
 }; 
