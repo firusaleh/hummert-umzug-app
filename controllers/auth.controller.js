@@ -11,7 +11,7 @@ const logRequestBody = (req) => {
 // Erstellt JWT Token
 const createToken = (user) => {
   return jwt.sign(
-    { id: user._id, username: user.username, role: user.role }, 
+    { id: user._id, name: user.name, role: user.role }, 
     process.env.JWT_SECRET, 
     { expiresIn: '1d' }
   );
@@ -27,26 +27,26 @@ exports.register = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    // Hier ist der wichtige Fix: Akzeptiere 'name' oder 'username'
+    // Extrahiere Daten aus dem Request
     const { email, password } = req.body;
-    const username = req.body.username || req.body.name || email.split('@')[0];
+    
+    // Das Modell verwendet 'name', nicht 'username'
+    const name = req.body.name || email.split('@')[0];
 
-    console.log('Verwendeter Benutzername:', username);
+    console.log('Verwendeter Name:', name);
 
     // Prüfen, ob Benutzer bereits existiert
-    const userExists = await User.findOne({ 
-      $or: [{ email }, { username }]
-    });
+    const userExists = await User.findOne({ email });
 
     if (userExists) {
       return res.status(400).json({ 
-        message: 'Benutzer mit dieser E-Mail oder diesem Benutzernamen existiert bereits' 
+        message: 'Benutzer mit dieser E-Mail existiert bereits' 
       });
     }
 
-    // Neuen Benutzer erstellen
+    // Neuen Benutzer erstellen mit den Feldern, die das Modell erwartet
     const user = new User({
-      username,
+      name,        // Verwende 'name' statt 'username'
       email,
       password
     });
@@ -61,7 +61,7 @@ exports.register = async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
+        name: user.name,
         email: user.email,
         role: user.role
       }
@@ -121,7 +121,7 @@ exports.login = async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
+        name: user.name,  // Benutze 'name' anstatt 'username'
         email: user.email,
         role: user.role
       }
