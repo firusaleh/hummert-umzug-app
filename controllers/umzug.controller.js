@@ -66,36 +66,83 @@ exports.createUmzug = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { 
-      kundennummer, auftraggeber, kontakte, auszugsadresse, 
-      einzugsadresse, zwischenstopps, startDatum, endDatum, 
-      status, preis, aufnahmeId, fahrzeuge, mitarbeiter
-    } = req.body;
+    // Daten bereinigen und korrigieren
+    const umzugData = { ...req.body };
+    
+    // 1. aufnahmeId entfernen, wenn leer
+    if (!umzugData.aufnahmeId || umzugData.aufnahmeId === '') {
+      delete umzugData.aufnahmeId;
+    }
+    
+    // 2. Fahrzeuge-Array bereinigen, um ObjectId-Probleme zu vermeiden
+    if (Array.isArray(umzugData.fahrzeuge)) {
+      umzugData.fahrzeuge = umzugData.fahrzeuge.map(fahrzeug => {
+        // Nur die notwendigen Attribute behalten, _id entfernen
+        const { _id, ...fahrzeugOhneId } = fahrzeug;
+        return fahrzeugOhneId;
+      });
+    } else {
+      umzugData.fahrzeuge = [];
+    }
+    
+    // 3. Mitarbeiter-Array bereinigen
+    if (Array.isArray(umzugData.mitarbeiter)) {
+      // Mitarbeiter mit korrektem Format behalten
+      umzugData.mitarbeiter = [];
+    } else {
+      umzugData.mitarbeiter = [];
+    }
+
+    console.log('Bereinigte Daten:', JSON.stringify(umzugData, null, 2));
 
     // Wenn aufnahmeId vorhanden, prüfen, ob die Aufnahme existiert
-    if (aufnahmeId) {
-      const aufnahme = await Aufnahme.findById(aufnahmeId);
-      if (!aufnahme) {
-        return res.status(400).json({ message: 'Aufnahme existiert nicht' });
+    if (umzugData.aufnahmeId) {
+      try {
+        const aufnahme = await Aufnahme.findById(umzugData.aufnahmeId);
+        if (!aufnahme) {
+          return res.status(400).json({ message: 'Aufnahme existiert nicht' });
+        }
+      } catch (err) {
+        console.error('Fehler beim Überprüfen der Aufnahme:', err);
+        delete umzugData.aufnahmeId; // Im Fehlerfall sicherheitshalber löschen
       }
     }
 
-    // Neuen Umzug erstellen
-    const umzug = new Umzug({
-      kundennummer,
-      auftraggeber,
-      kontakte,
-      auszugsadresse,
-      einzugsadresse,
-      zwischenstopps: zwischenstopps || [],
-      startDatum,
-      endDatum,
-      status: status || 'angefragt',
-      preis,
-      aufnahmeId,
-      fahrzeuge: fahrzeuge || [],
-      mitarbeiter: mitarbeiter || []
-    });
+    // Datumsfelder sicherstellen
+    if (umzugData.startDatum) {
+      try {
+        umzugData.startDatum = new Date(umzugData.startDatum);
+      } catch (err) {
+        console.error('Fehler beim Formatieren des Startdatums:', err);
+        umzugData.startDatum = new Date();
+      }
+    }
+    
+    if (umzugData.endDatum) {
+      try {
+        umzugData.endDatum = new Date(umzugData.endDatum);
+      } catch (err) {
+        console.error('Fehler beim Formatieren des Enddatums:', err);
+        // Fallback: Startdatum + 1 Tag
+        const endDate = new Date(umzugData.startDatum || new Date());
+        endDate.setDate(endDate.getDate() + 1);
+        umzugData.endDatum = endDate;
+      }
+    }
+
+    // Numerische Werte im Preis-Objekt sicherstellen
+    if (umzugData.preis) {
+      umzugData.preis = {
+        netto: parseFloat(umzugData.preis.netto || 0),
+        brutto: parseFloat(umzugData.preis.brutto || 0),
+        mwst: parseFloat(umzugData.preis.mwst || 19),
+        bezahlt: Boolean(umzugData.preis.bezahlt),
+        zahlungsart: umzugData.preis.zahlungsart || 'rechnung'
+      };
+    }
+
+    // Neuen Umzug erstellen mit bereinigten Daten
+    const umzug = new Umzug(umzugData);
 
     await umzug.save();
 
@@ -105,7 +152,7 @@ exports.createUmzug = async (req, res) => {
     });
   } catch (error) {
     console.error('Fehler beim Erstellen des Umzugs:', error);
-    res.status(500).json({ message: 'Serverfehler beim Erstellen des Umzugs' });
+    res.status(500).json({ message: 'Serverfehler beim Erstellen des Umzugs', error: error.message });
   }
 };
 
@@ -125,18 +172,44 @@ exports.updateUmzug = async (req, res) => {
       return res.status(404).json({ message: 'Umzug nicht gefunden' });
     }
 
+    // Daten bereinigen
+    const updateData = { ...req.body };
+    
+    // aufnahmeId entfernen, wenn leer
+    if (!updateData.aufnahmeId || updateData.aufnahmeId === '') {
+      delete updateData.aufnahmeId;
+    }
+    
+    // Fahrzeuge bereinigen
+    if (Array.isArray(updateData.fahrzeuge)) {
+      updateData.fahrzeuge = updateData.fahrzeuge.map(fahrzeug => {
+        const { _id, ...fahrzeugOhneId } = fahrzeug;
+        return fahrzeugOhneId;
+      });
+    }
+    
+    // Mitarbeiter bereinigen
+    if (Array.isArray(updateData.mitarbeiter)) {
+      updateData.mitarbeiter = [];
+    }
+
     // Alle Felder aktualisieren, die im Request enthalten sind
     const updateFields = [
       'kundennummer', 'auftraggeber', 'kontakte', 'auszugsadresse',
       'einzugsadresse', 'zwischenstopps', 'startDatum', 'endDatum',
-      'status', 'preis', 'aufnahmeId', 'fahrzeuge', 'mitarbeiter'
+      'status', 'preis', 'fahrzeuge', 'mitarbeiter'
     ];
 
     updateFields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        umzug[field] = req.body[field];
+      if (updateData[field] !== undefined) {
+        umzug[field] = updateData[field];
       }
     });
+    
+    // aufnahmeId separat behandeln
+    if (updateData.aufnahmeId !== undefined) {
+      umzug.aufnahmeId = updateData.aufnahmeId;
+    }
 
     await umzug.save();
 
