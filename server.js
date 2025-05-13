@@ -26,7 +26,9 @@ const corsOptions = {
 const app = express();
 
 // Middleware
-app.use(helmet()); // Sicherheits-Header
+app.use(helmet({
+  contentSecurityPolicy: false // CSP deaktivieren, falls es Probleme mit dem Frontend gibt
+})); 
 app.use(cors(corsOptions)); // CORS mit Optionen aktivieren
 app.use(express.json()); // JSON-Anfragen parsen
 app.use(express.urlencoded({ extended: true })); // URL-kodierte Anfragen parsen
@@ -42,12 +44,19 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // API-Routen
 app.use('/api', routes);
 
-// Fehlerbehandlung für nicht gefundene Routen
-app.use((req, res, next) => {
-  res.status(404).json({ message: "API-Endpunkt nicht gefunden" });
+// Pfad zum Frontend-Build-Ordner
+// Basierend auf Ihrem Screenshot: frontend/build
+const buildPath = path.join(__dirname, 'frontend/build');
+
+// Statische Dateien bereitstellen
+app.use(express.static(buildPath));
+
+// Alle anderen GET-Anfragen an die React-App weiterleiten
+app.get('*', (req, res) => {
+  res.sendFile(path.join(buildPath, 'index.html'));
 });
 
-// Globaler Fehlerhandler
+// Globaler Fehlerhandler (nach den Routes)
 app.use(errorHandler);
 
 // MongoDB-Verbindung herstellen
