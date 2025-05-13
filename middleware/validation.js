@@ -86,7 +86,7 @@ exports.taskValidation = [
   validate
 ];
 
-// Validierung für Clients - Dies ist die fehlende Middleware
+// Validierung für Clients
 exports.clientValidation = [
   body('name').notEmpty().withMessage('Name ist erforderlich'),
   body('type')
@@ -101,6 +101,25 @@ exports.clientValidation = [
     .optional()
     .matches(/^[0-9\s\+\-\(\)]{8,20}$/)
     .withMessage('Bitte geben Sie eine gültige Telefonnummer an'),
+  validate
+];
+
+// NEUE VALIDIERUNG: Zeiterfassung-Validierung
+exports.zeiterfassungValidation = [
+  body('mitarbeiterId').notEmpty().withMessage('Mitarbeiter ist erforderlich'),
+  body('projektId').notEmpty().withMessage('Projekt ist erforderlich'),
+  body('datum').isISO8601().withMessage('Gültiges Datum erforderlich'),
+  body('startzeit')
+    .notEmpty().withMessage('Startzeit ist erforderlich')
+    .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Startzeit muss im Format HH:MM sein'),
+  body('endzeit')
+    .notEmpty().withMessage('Endzeit ist erforderlich')
+    .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Endzeit muss im Format HH:MM sein'),
+  body('pause')
+    .isInt({ min: 0 }).withMessage('Pause darf nicht negativ sein'),
+  body('taetigkeit').notEmpty().withMessage('Tätigkeit ist erforderlich'),
+  body('arbeitsstunden')
+    .isFloat({ min: 0 }).withMessage('Arbeitsstunden dürfen nicht negativ sein'),
   validate
 ];
 

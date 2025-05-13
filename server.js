@@ -42,6 +42,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // API-Routen
 app.use('/api', routes);
 
+// Fehlerbehandlung für nicht gefundene Routen
+app.use((req, res, next) => {
+  res.status(404).json({ message: "API-Endpunkt nicht gefunden" });
+});
 
 // Globaler Fehlerhandler
 app.use(errorHandler);
