@@ -5,6 +5,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 const helmet = require('helmet');
 const routes = require('./routes');
 const { errorHandler } = require('./middleware/error.middleware');
@@ -27,26 +28,39 @@ const app = express();
 
 // Middleware
 app.use(helmet({
-  contentSecurityPolicy: false // CSP deaktivieren, falls es Probleme mit dem Frontend gibt
+  contentSecurityPolicy: false // CSP deaktivieren
 })); 
-app.use(cors(corsOptions)); // CORS mit Optionen aktivieren
-app.use(express.json()); // JSON-Anfragen parsen
-app.use(express.urlencoded({ extended: true })); // URL-kodierte Anfragen parsen
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Logging im Entwicklungsmodus
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Statische Dateien bereitstellen
+// Statische Dateien für Uploads bereitstellen
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API-Routen
 app.use('/api', routes);
 
-// Pfad zum Frontend-Build-Ordner
-// Basierend auf Ihrem Screenshot: frontend/build
-const buildPath = path.join(__dirname, 'frontend/build');
+// Frontend-Build-Dateien bereitstellen
+// Basierend auf dem Render.com-Screenshot ist das Build-Verzeichnis einfach 'build'
+const buildPath = path.join(__dirname, 'build');
+
+// Debugging-Info in die Logs schreiben
+console.log('Server-Verzeichnis (__dirname):', __dirname);
+console.log('Build-Pfad:', buildPath);
+console.log('Build-Verzeichnis existiert:', fs.existsSync(buildPath));
+if (fs.existsSync(buildPath)) {
+  try {
+    console.log('Build-Verzeichnisinhalt:', fs.readdirSync(buildPath));
+    console.log('index.html existiert:', fs.existsSync(path.join(buildPath, 'index.html')));
+  } catch (err) {
+    console.error('Fehler beim Lesen des Build-Verzeichnisses:', err);
+  }
+}
 
 // Statische Dateien bereitstellen
 app.use(express.static(buildPath));
@@ -56,7 +70,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(buildPath, 'index.html'));
 });
 
-// Globaler Fehlerhandler (nach den Routes)
+// Globaler Fehlerhandler
 app.use(errorHandler);
 
 // MongoDB-Verbindung herstellen
