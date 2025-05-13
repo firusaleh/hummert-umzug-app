@@ -1,6 +1,46 @@
 // models/aufnahme.model.js
 const mongoose = require('mongoose');
 
+const adresseSchema = new mongoose.Schema({
+  strasse: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  hausnummer: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  plz: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  ort: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  land: {
+    type: String,
+    default: 'Deutschland',
+    trim: true
+  },
+  etage: {
+    type: Number,
+    default: 0
+  },
+  aufzug: {
+    type: Boolean,
+    default: false
+  },
+  entfernung: { // in Metern zur Parkposition
+    type: Number,
+    default: 0
+  }
+});
+
 const moebelSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -67,21 +107,52 @@ const aufnahmeSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  auszugsadresse: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Umzug.auszugsadresse'
+  kontaktperson: {
+    type: String,
+    trim: true
   },
-  einzugsadresse: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Umzug.einzugsadresse'
+  telefon: {
+    type: String,
+    trim: true
   },
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  umzugstyp: {
+    type: String,
+    enum: ['privat', 'gewerbe', 'senioren', 'fernumzug', 'buero'],
+    default: 'privat'
+  },
+  umzugsvolumen: {
+    type: Number,
+    default: 0
+  },
+  uhrzeit: {
+    type: String,
+    default: '09:00'
+  },
+  auszugsadresse: adresseSchema,
+  einzugsadresse: adresseSchema,
   raeume: [raumSchema],
   gesamtvolumen: Number, // in m³
   aufnehmer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  mitarbeiterId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Mitarbeiter'
+  },
   notizen: String,
+  besonderheiten: String,
+  bewertung: {
+    type: Number,
+    min: 1,
+    max: 5,
+    default: 3
+  },
   bilder: [String], // Pfade zu Bildern
   dokumente: [{
     name: String,
@@ -90,7 +161,11 @@ const aufnahmeSchema = new mongoose.Schema({
   }],
   angebotspreis: {
     netto: Number,
-    brutto: Number
+    brutto: Number,
+    mwst: {
+      type: Number,
+      default: 19
+    }
   },
   status: {
     type: String,

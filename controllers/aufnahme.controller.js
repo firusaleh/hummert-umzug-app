@@ -66,23 +66,43 @@ exports.createAufnahme = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { 
-      datum, kundenName, auszugsadresse, einzugsadresse, 
-      raeume, gesamtvolumen, notizen
-    } = req.body;
+    // Daten bereinigen
+    const aufnahmeData = { ...req.body };
+    
+    // Datumsfelder korrekt formatieren
+    if (aufnahmeData.datum) {
+      try {
+        aufnahmeData.datum = new Date(aufnahmeData.datum);
+      } catch (err) {
+        console.error('Fehler beim Formatieren des Datums:', err);
+        aufnahmeData.datum = new Date();
+      }
+    } else {
+      aufnahmeData.datum = new Date();
+    }
+    
+    // Wenn aufnehmer nicht angegeben, aber User vorhanden, dann User als Aufnehmer setzen
+    if (!aufnahmeData.aufnehmer && req.user) {
+      aufnahmeData.aufnehmer = req.user.id;
+    }
+    
+    // Stelle sicher, dass auszugsadresse und einzugsadresse als eingebettete Dokumente gespeichert werden
+    if (aufnahmeData.auszugsadresse && typeof aufnahmeData.auszugsadresse === 'object') {
+      // Die Adresse direkt verwenden, ohne ObjectId-Referenz
+      // Wir müssen nichts tun, da wir die Daten so verwenden, wie sie sind
+    } else if (aufnahmeData.auszugsadresse) {
+      delete aufnahmeData.auszugsadresse; // Wenn es keine gültige Objektform ist, entfernen
+    }
+    
+    if (aufnahmeData.einzugsadresse && typeof aufnahmeData.einzugsadresse === 'object') {
+      // Die Adresse direkt verwenden
+      // Wir müssen nichts tun, da wir die Daten so verwenden, wie sie sind
+    } else if (aufnahmeData.einzugsadresse) {
+      delete aufnahmeData.einzugsadresse; // Wenn es keine gültige Objektform ist, entfernen
+    }
 
     // Neue Aufnahme erstellen
-    const aufnahme = new Aufnahme({
-      datum: datum || new Date(),
-      kundenName,
-      auszugsadresse,
-      einzugsadresse,
-      raeume: raeume || [],
-      gesamtvolumen,
-      aufnehmer: req.user.id,
-      notizen,
-      status: 'in_bearbeitung'
-    });
+    const aufnahme = new Aufnahme(aufnahmeData);
 
     await aufnahme.save();
 
@@ -92,7 +112,7 @@ exports.createAufnahme = async (req, res) => {
     });
   } catch (error) {
     console.error('Fehler beim Erstellen der Aufnahme:', error);
-    res.status(500).json({ message: 'Serverfehler beim Erstellen der Aufnahme' });
+    res.status(500).json({ message: 'Serverfehler beim Erstellen der Aufnahme', error: error.message });
   }
 };
 
@@ -112,15 +132,39 @@ exports.updateAufnahme = async (req, res) => {
       return res.status(404).json({ message: 'Aufnahme nicht gefunden' });
     }
 
+    // Daten bereinigen
+    const updateData = { ...req.body };
+    
+    // Datumsfelder korrekt formatieren
+    if (updateData.datum) {
+      try {
+        updateData.datum = new Date(updateData.datum);
+      } catch (err) {
+        console.error('Fehler beim Formatieren des Datums:', err);
+        delete updateData.datum; // Im Fehlerfall nicht aktualisieren
+      }
+    }
+    
+    // Adressen als eingebettete Dokumente behandeln
+    if (updateData.auszugsadresse && typeof updateData.auszugsadresse !== 'object') {
+      delete updateData.auszugsadresse;
+    }
+    
+    if (updateData.einzugsadresse && typeof updateData.einzugsadresse !== 'object') {
+      delete updateData.einzugsadresse;
+    }
+
     // Alle Felder aktualisieren, die im Request enthalten sind
     const updateFields = [
       'datum', 'kundenName', 'auszugsadresse', 'einzugsadresse',
-      'raeume', 'gesamtvolumen', 'notizen', 'angebotspreis', 'status'
+      'raeume', 'gesamtvolumen', 'notizen', 'angebotspreis', 'status',
+      'kontaktperson', 'telefon', 'email', 'umzugstyp', 'umzugsvolumen',
+      'uhrzeit', 'besonderheiten', 'bewertung', 'mitarbeiterId'
     ];
 
     updateFields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        aufnahme[field] = req.body[field];
+      if (updateData[field] !== undefined) {
+        aufnahme[field] = updateData[field];
       }
     });
 
@@ -132,7 +176,7 @@ exports.updateAufnahme = async (req, res) => {
     });
   } catch (error) {
     console.error('Fehler beim Aktualisieren der Aufnahme:', error);
-    res.status(500).json({ message: 'Serverfehler beim Aktualisieren der Aufnahme' });
+    res.status(500).json({ message: 'Serverfehler beim Aktualisieren der Aufnahme', error: error.message });
   }
 };
 
