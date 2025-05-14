@@ -1,4 +1,4 @@
-// controllers/auth.controller.js
+// controllers/auth.controller.js - Aktualisierte Version
 const { User } = require('../models'); // Zentraler Import
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
@@ -28,7 +28,7 @@ exports.register = async (req, res) => {
     }
 
     // Extrahiere Daten aus dem Request
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
     
     // Das Modell verwendet 'name', nicht 'username'
     const name = req.body.name || email.split('@')[0];
@@ -48,7 +48,8 @@ exports.register = async (req, res) => {
     const user = new User({
       name,        // Verwende 'name' statt 'username'
       email,
-      password
+      password,
+      role: role || 'user' // Erlaube das Setzen der Rolle beim Registrieren
     });
 
     await user.save();
@@ -146,5 +147,64 @@ exports.getMe = async (req, res) => {
   } catch (error) {
     console.error('Fehler beim Abrufen des Benutzerprofils:', error);
     res.status(500).json({ message: 'Serverfehler beim Abrufen des Benutzerprofils' });
+  }
+};
+
+// Neue Funktion: Admin-Benutzer erstellen
+exports.createAdmin = async (req, res) => {
+  try {
+    // Request-Body für Debugging loggen
+    logRequestBody(req);
+
+    const { email, password, name } = req.body;
+    
+    // Prüfen, ob Benutzer bereits existiert
+    const userExists = await User.findOne({ email });
+
+    if (userExists) {
+      // Wenn der Benutzer existiert, zu Admin machen
+      userExists.role = 'admin';
+      await userExists.save();
+      
+      return res.status(200).json({ 
+        message: 'Benutzer wurde zum Admin hochgestuft',
+        user: {
+          id: userExists._id,
+          name: userExists.name,
+          email: userExists.email,
+          role: userExists.role
+        }
+      });
+    }
+
+    // Neuen Admin-Benutzer erstellen
+    const user = new User({
+      name: name || email.split('@')[0],
+      email,
+      password,
+      role: 'admin'
+    });
+
+    await user.save();
+
+    // Token erstellen
+    const token = createToken(user);
+
+    res.status(201).json({
+      message: 'Admin-Benutzer erfolgreich erstellt',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Fehler beim Erstellen des Admin-Benutzers:', error);
+    res.status(500).json({ 
+      message: 'Serverfehler beim Erstellen des Admin-Benutzers', 
+      error: error.message 
+    });
   }
 };

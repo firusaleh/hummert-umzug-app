@@ -1,4 +1,4 @@
-// routes/mitarbeiter.routes.js
+// routes/mitarbeiter.routes.js - Aktualisierte Version ohne Admin-Check
 const express = require('express');
 const router = express.Router();
 const mitarbeiterController = require('../controllers/mitarbeiter.controller');
@@ -21,17 +21,17 @@ router.get(
 );
 
 // POST /api/mitarbeiter - Neuen Mitarbeiter erstellen
+// Admin-Check entfernt
 router.post(
   '/',
-  authMiddleware.checkRole('admin'),
   validators.mitarbeiterValidation,
   mitarbeiterController.createMitarbeiter
 );
 
 // PUT /api/mitarbeiter/:id - Mitarbeiter aktualisieren
+// Admin-Check entfernt
 router.put(
   '/:id',
-  authMiddleware.checkRole('admin'),
   validators.mitarbeiterValidation,
   mitarbeiterController.updateMitarbeiter
 );
