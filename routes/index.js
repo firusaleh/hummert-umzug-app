@@ -1,4 +1,4 @@
-// routes/index.js
+// Aktualisierte routes/index.js
 const express = require('express');
 const router = express.Router();
 const { protect, admin } = require('../middleware/auth'); // ODER verwende auth.middleware.js
@@ -17,6 +17,7 @@ const mitarbeiterRoutes = require('./mitarbeiter.routes');
 const benachrichtigungRoutes = require('./benachrichtigung.routes');
 const uploadRoutes = require('./upload.routes');
 const zeiterfassungRoutes = require('./zeiterfassung.routes'); // Neue Route für Zeiterfassung
+const finanzenRoutes = require('./finanzen.routes'); // Neue Route für Finanzen
 
 // Health-Check-Route für API-Verfügbarkeitsprüfung
 router.get('/health', (req, res) => {
@@ -49,6 +50,7 @@ router.use('/mitarbeiter', mitarbeiterRoutes);
 router.use('/benachrichtigungen', benachrichtigungRoutes);
 router.use('/uploads', uploadRoutes);
 router.use('/zeiterfassung', zeiterfassungRoutes); // Neue Route für Zeiterfassung registriert
+router.use('/finanzen', finanzenRoutes); // Neue Route für Finanzen registriert
 
 // Route zum Löschen aller Beispieldaten (nur für Admins)
 router.delete('/delete-example-data', protect, admin, fileController.deleteAllExampleData);
