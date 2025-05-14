@@ -2,12 +2,17 @@
 const mongoose = require('mongoose');
 mongoose.Promise = global.Promise;
 
+// Importiere das User-Modell direkt
+const User = require('./user');
+
 const db = {};
 
 db.mongoose = mongoose;
 
 // Benutzer und Authentifizierung
-db.user = require('./user');
+db.user = User;
+// Exportiere User auch direkt, um destrukturierte Imports zu ermöglichen
+db.User = User; 
 
 // Kunden- und Projektmanagement
 db.client = require('./client');
