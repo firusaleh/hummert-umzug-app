@@ -6,7 +6,7 @@ const finanzenController = require('../controllers/finanzen.controller');
 
 // Finanzübersicht Routen
 router.get('/uebersicht', protect, finanzenController.getFinanzuebersicht);
-router.get('/monatsübersicht/:jahr', protect, finanzenController.getMonatsuebersicht);
+router.get('/monatsuebersicht/:jahr', protect, finanzenController.getMonatsuebersicht);
 router.get('/monat/:monat/:jahr', protect, finanzenController.getMonatsdetails);
 
 // Angebote Routen
