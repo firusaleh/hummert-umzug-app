@@ -34,58 +34,62 @@ exports.getMitarbeiterById = async (req, res) => {
   }
 };
 
-// Neuen Mitarbeiter erstellen
+// Neuen Mitarbeiter erstellen - AKTUALISIERTE VERSION
 exports.createMitarbeiter = async (req, res) => {
   try {
-    // Validierungsfehler prüfen
     const errors = validationResult(req);
+    
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
-    const { 
-      userId, vorname, nachname, telefon, adresse, 
-      position, einstellungsdatum, faehigkeiten, 
-      fuehrerscheinklassen, notizen 
-    } = req.body;
-
-    // Prüfen, ob der Benutzer existiert
-    const existingUser = await User.findById(userId);
-    if (!existingUser) {
-      return res.status(400).json({ message: 'Benutzer existiert nicht' });
-    }
-
-    // Prüfen, ob bereits ein Mitarbeiter mit dieser userId existiert
-    const existingMitarbeiter = await Mitarbeiter.findOne({ userId });
-    if (existingMitarbeiter) {
+    
+    // In der Anfrage oder vom authentifizierten Benutzer die Benutzer-ID holen
+    const userId = req.body.userId || req.user.id;
+    
+    if (!userId) {
       return res.status(400).json({ 
-        message: 'Mitarbeiter mit dieser Benutzer-ID existiert bereits' 
+        errors: [{ 
+          type: 'field', 
+          msg: 'Benutzer-ID ist erforderlich', 
+          path: 'userId', 
+          location: 'body' 
+        }] 
       });
     }
-
-    // Neuen Mitarbeiter erstellen
-    const mitarbeiter = new Mitarbeiter({
-      userId,
-      vorname,
-      nachname,
-      telefon,
-      adresse,
-      position,
-      einstellungsdatum,
-      faehigkeiten,
-      fuehrerscheinklassen,
-      notizen
-    });
-
-    await mitarbeiter.save();
-
+    
+    // Mitarbeiterdaten zusammenstellen
+    const mitarbeiterData = {
+      ...req.body,
+      userId, // Stelle sicher, dass die Benutzer-ID gesetzt ist
+      createdBy: req.user.id // Wer hat diesen Mitarbeiter erstellt
+    };
+    
+    // Mitarbeiter in der Datenbank erstellen
+    const mitarbeiter = await Mitarbeiter.create(mitarbeiterData);
+    
     res.status(201).json({
+      success: true,
       message: 'Mitarbeiter erfolgreich erstellt',
       mitarbeiter
     });
   } catch (error) {
     console.error('Fehler beim Erstellen des Mitarbeiters:', error);
-    res.status(500).json({ message: 'Serverfehler beim Erstellen des Mitarbeiters' });
+    
+    if (error.name === 'ValidationError') {
+      // Mongoose-Validierungsfehler
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validierungsfehler',
+        errors: validationErrors
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Serverfehler beim Erstellen des Mitarbeiters',
+      error: error.message
+    });
   }
 };
 
