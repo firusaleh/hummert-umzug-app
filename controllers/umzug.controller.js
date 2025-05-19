@@ -3,11 +3,58 @@ const Umzug = require('../models/umzug.model');
 const Aufnahme = require('../models/aufnahme.model');
 const Benachrichtigung = require('../models/benachrichtigung.model');
 const { validationResult } = require('express-validator');
+const { 
+  createOffsetPaginationResponse, 
+  createCursorPaginationResponse,
+  createDateRangeFilter,
+  createSearchFilter 
+} = require('../middleware/pagination');
 
-// Alle Umzüge abrufen
+// Alle Umzüge abrufen mit Pagination
 exports.getAllUmzuege = async (req, res) => {
   try {
-    const { status, startDatum, endDatum } = req.query;
+    const { status, startDatum, endDatum, search, ...filters } = req.query;
+    
+    // Filter erstellen
+    const filter = { ...req.filters };
+    
+    if (status) {
+      filter.status = status;
+    }
+    
+    // Date range filter
+    const dateFilter = createDateRangeFilter(startDatum, endDatum, 'startDatum');
+    Object.assign(filter, dateFilter);
+    
+    // Search filter
+    if (search) {
+      const searchFilter = createSearchFilter(search, ['kundennummer', 'auftraggeber.name']);
+      Object.assign(filter, searchFilter);
+    }
+    
+    // Build query
+    const query = Umzug.find(filter)
+      .populate('mitarbeiter.mitarbeiterId', 'vorname nachname')
+      .populate('aufnahmeId')
+      .sort(req.sorting);
+    
+    // Count query
+    const countQuery = Umzug.countDocuments(filter);
+    
+    // Create paginated response
+    const response = await createOffsetPaginationResponse(query, countQuery, req);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Fehler beim Abrufen der Umzüge:', error);
+    res.status(500).json({ message: 'Serverfehler beim Abrufen der Umzüge' });
+  }
+};
+
+// Umzüge mit Cursor-based Pagination (für Real-time Updates)
+exports.getUmzuegeStream = async (req, res) => {
+  try {
+    const { status } = req.query;
     
     // Filter erstellen
     const filter = {};
@@ -16,23 +63,19 @@ exports.getAllUmzuege = async (req, res) => {
       filter.status = status;
     }
     
-    if (startDatum || endDatum) {
-      filter.startDatum = {};
-      if (startDatum) {
-        filter.startDatum.$gte = new Date(startDatum);
-      }
-      if (endDatum) {
-        filter.endDatum = filter.endDatum || {};
-        filter.endDatum.$lte = new Date(endDatum);
-      }
-    }
-    
-    const umzuege = await Umzug.find(filter)
+    // Build query with sorting by creation date
+    const query = Umzug.find(filter)
       .populate('mitarbeiter.mitarbeiterId', 'vorname nachname')
       .populate('aufnahmeId')
-      .sort({ startDatum: 1 });
+      .sort({ createdAt: -1 });
     
-    res.json(umzuege);
+    // Create cursor-based response
+    const { data, pagination } = await createCursorPaginationResponse(query, req, 'createdAt');
+    
+    res.json({
+      data,
+      pagination
+    });
   } catch (error) {
     console.error('Fehler beim Abrufen der Umzüge:', error);
     res.status(500).json({ message: 'Serverfehler beim Abrufen der Umzüge' });

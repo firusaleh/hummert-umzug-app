@@ -3,15 +3,41 @@ const Benachrichtigung = require('../models/benachrichtigung.model');
 const User = require('../models/user');
 const Umzug = require('../models/umzug.model');
 const nodemailer = require('nodemailer');
+const { 
+  createCursorPaginationResponse,
+  createSearchFilter 
+} = require('../middleware/pagination');
 
-// Alle Benachrichtigungen eines Benutzers abrufen
+// Alle Benachrichtigungen eines Benutzers abrufen mit Cursor Pagination
 exports.getMeineBenachrichtigungen = async (req, res) => {
   try {
-    const benachrichtigungen = await Benachrichtigung.find({ empfaenger: req.user.id })
-      .sort({ createdAt: -1 })
-      .populate('erstelltVon', 'name');
+    const { gelesen, typ, search } = req.query;
     
-    res.json(benachrichtigungen);
+    // Filter erstellen
+    const filter = { empfaenger: req.user.id };
+    
+    if (gelesen !== undefined) {
+      filter.gelesen = gelesen === 'true';
+    }
+    
+    if (typ) {
+      filter.typ = typ;
+    }
+    
+    if (search) {
+      const searchFilter = createSearchFilter(search, ['titel', 'inhalt']);
+      Object.assign(filter, searchFilter);
+    }
+    
+    // Build query with sorting by creation date (newest first)
+    const query = Benachrichtigung.find(filter)
+      .populate('erstelltVon', 'name')
+      .sort({ createdAt: -1 });
+    
+    // Create cursor-based response
+    const response = await createCursorPaginationResponse(query, req, 'createdAt');
+    
+    res.json(response);
   } catch (error) {
     console.error('Fehler beim Abrufen der Benachrichtigungen:', error);
     res.status(500).json({ message: 'Serverfehler beim Abrufen der Benachrichtigungen' });

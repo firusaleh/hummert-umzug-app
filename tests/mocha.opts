@@ -1,0 +1,4 @@
+--recursive
+--exit
+--timeout 10000
+--require ./tests/setup.js

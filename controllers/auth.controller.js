@@ -1,4 +1,4 @@
-// controllers/auth.controller.js - Aktualisierte Version
+// controllers/auth.controller.js - Korrigierte Version
 const { User } = require('../models'); // Zentraler Import
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
@@ -10,6 +10,16 @@ const logRequestBody = (req) => {
 
 // Erstellt JWT Token
 const createToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    console.error('WARNUNG: JWT_SECRET nicht definiert in Umgebungsvariablen!');
+    // Fallback für Entwicklungsumgebung (NICHT FÜR PRODUKTION VERWENDEN!)
+    return jwt.sign(
+      { id: user._id, name: user.name, role: user.role },
+      'development_secret_key_replace_in_production',
+      { expiresIn: '1d' }
+    );
+  }
+  
   return jwt.sign(
     { id: user._id, name: user.name, role: user.role }, 
     process.env.JWT_SECRET, 
@@ -24,7 +34,7 @@ exports.register = async (req, res) => {
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
 
     // Extrahiere Daten aus dem Request
@@ -40,6 +50,7 @@ exports.register = async (req, res) => {
 
     if (userExists) {
       return res.status(400).json({ 
+        success: false,
         message: 'Benutzer mit dieser E-Mail existiert bereits' 
       });
     }
@@ -49,7 +60,7 @@ exports.register = async (req, res) => {
       name,        // Verwende 'name' statt 'username'
       email,
       password,
-      role: role || 'user' // Erlaube das Setzen der Rolle beim Registrieren
+      role: role || 'mitarbeiter' // Erlaube das Setzen der Rolle beim Registrieren (Standardwert korrigiert)
     });
 
     await user.save();
@@ -58,6 +69,7 @@ exports.register = async (req, res) => {
     const token = createToken(user);
 
     res.status(201).json({
+      success: true,
       message: 'Benutzer erfolgreich registriert',
       token,
       user: {
@@ -74,12 +86,14 @@ exports.register = async (req, res) => {
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
+        success: false,
         message: 'Validierungsfehler',
         errors: validationErrors
       });
     }
     
     res.status(500).json({ 
+      success: false,
       message: 'Serverfehler bei der Registrierung', 
       error: error.message 
     });
@@ -93,7 +107,7 @@ exports.login = async (req, res) => {
     
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
 
     const { email, password } = req.body;
@@ -101,13 +115,18 @@ exports.login = async (req, res) => {
     // Benutzer finden
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+      return res.status(401).json({ success: false, message: 'Ungültige Anmeldedaten' });
     }
 
     // Passwort überprüfen
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+      return res.status(401).json({ success: false, message: 'Ungültige Anmeldedaten' });
+    }
+
+    // Prüfen, ob Benutzer aktiv ist
+    if (user.isActive !== undefined && !user.isActive) {
+      return res.status(401).json({ success: false, message: 'Dieses Konto wurde deaktiviert' });
     }
 
     // Login-Zeit aktualisieren
@@ -118,18 +137,23 @@ exports.login = async (req, res) => {
     const token = createToken(user);
 
     res.json({
+      success: true,
       message: 'Login erfolgreich',
       token,
       user: {
         id: user._id,
-        name: user.name,  // Benutze 'name' anstatt 'username'
+        name: user.name,
         email: user.email,
         role: user.role
       }
     });
   } catch (error) {
     console.error('Fehler beim Login:', error);
-    res.status(500).json({ message: 'Serverfehler beim Login', error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Serverfehler beim Login', 
+      error: error.message 
+    });
   }
 }; 
 
@@ -140,13 +164,48 @@ exports.getMe = async (req, res) => {
     const user = await User.findById(req.user.id).select('-password');
     
     if (!user) {
-      return res.status(404).json({ message: 'Benutzer nicht gefunden' });
+      return res.status(404).json({ success: false, message: 'Benutzer nicht gefunden' });
     }
     
-    res.json(user);
+    res.json({
+      success: true,
+      user
+    });
   } catch (error) {
     console.error('Fehler beim Abrufen des Benutzerprofils:', error);
-    res.status(500).json({ message: 'Serverfehler beim Abrufen des Benutzerprofils' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Serverfehler beim Abrufen des Benutzerprofils' 
+    });
+  }
+};
+
+// Authentifizierungsstatus überprüfen
+exports.checkAuth = async (req, res) => {
+  try {
+    // req.user wird durch auth-Middleware hinzugefügt
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Nicht authentifiziert' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Authentifiziert',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Fehler bei der Authentifizierungsprüfung:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Serverfehler bei der Authentifizierungsprüfung'
+    });
   }
 };
 
@@ -167,6 +226,7 @@ exports.createAdmin = async (req, res) => {
       await userExists.save();
       
       return res.status(200).json({ 
+        success: true,
         message: 'Benutzer wurde zum Admin hochgestuft',
         user: {
           id: userExists._id,
@@ -191,6 +251,7 @@ exports.createAdmin = async (req, res) => {
     const token = createToken(user);
 
     res.status(201).json({
+      success: true,
       message: 'Admin-Benutzer erfolgreich erstellt',
       token,
       user: {
@@ -203,6 +264,7 @@ exports.createAdmin = async (req, res) => {
   } catch (error) {
     console.error('Fehler beim Erstellen des Admin-Benutzers:', error);
     res.status(500).json({ 
+      success: false,
       message: 'Serverfehler beim Erstellen des Admin-Benutzers', 
       error: error.message 
     });

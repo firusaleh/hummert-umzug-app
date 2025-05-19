@@ -2,15 +2,45 @@
 const Mitarbeiter = require('../models/mitarbeiter.model');
 const User = require('../models/user');
 const { validationResult } = require('express-validator');
+const { 
+  createOffsetPaginationResponse, 
+  createSearchFilter 
+} = require('../middleware/pagination');
 
-// Alle Mitarbeiter abrufen
+// Alle Mitarbeiter abrufen mit Pagination
 exports.getAllMitarbeiter = async (req, res) => {
   try {
-    const mitarbeiter = await Mitarbeiter.find()
-      .populate('userId', 'name email role')
-      .sort({ nachname: 1 });
+    const { search, position, isActive, ...filters } = req.query;
     
-    res.json(mitarbeiter);
+    // Filter erstellen
+    const filter = { ...req.filters };
+    
+    if (position) {
+      filter.position = position;
+    }
+    
+    if (isActive !== undefined) {
+      filter.isActive = isActive === 'true';
+    }
+    
+    // Search filter
+    if (search) {
+      const searchFilter = createSearchFilter(search, ['vorname', 'nachname', 'telefon']);
+      Object.assign(filter, searchFilter);
+    }
+    
+    // Build query
+    const query = Mitarbeiter.find(filter)
+      .populate('userId', 'name email role')
+      .sort(req.sorting);
+    
+    // Count query
+    const countQuery = Mitarbeiter.countDocuments(filter);
+    
+    // Create paginated response
+    const response = await createOffsetPaginationResponse(query, countQuery, req);
+    
+    res.json(response);
   } catch (error) {
     console.error('Fehler beim Abrufen der Mitarbeiter:', error);
     res.status(500).json({ message: 'Serverfehler beim Abrufen der Mitarbeiter' });

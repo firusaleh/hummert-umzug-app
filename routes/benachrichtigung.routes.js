@@ -1,15 +1,17 @@
-// routes/benachrichtigung.routes.js
+// routes/benachrichtigung.routes.js - Updated with pagination support
 const express = require('express');
 const router = express.Router();
 const benachrichtigungController = require('../controllers/benachrichtigung.controller');
 const authMiddleware = require('../middleware/auth');
+const { cursorPagination } = require('../middleware/pagination');
 
 // Alle Routen benötigen Authentifizierung
 router.use(authMiddleware.auth);
 
-// GET /api/benachrichtigungen - Alle Benachrichtigungen des Benutzers abrufen
+// GET /api/benachrichtigungen - Alle Benachrichtigungen des Benutzers abrufen mit Cursor Pagination
 router.get(
   '/',
+  cursorPagination,
   benachrichtigungController.getMeineBenachrichtigungen
 );
 

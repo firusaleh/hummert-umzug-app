@@ -1,50 +1,61 @@
-// routes/mitarbeiter.routes.js - Aktualisierte Version ohne Admin-Check
+// routes/mitarbeiter.routes.js - Updated with pagination support
 const express = require('express');
 const router = express.Router();
 const mitarbeiterController = require('../controllers/mitarbeiter.controller');
 const authMiddleware = require('../middleware/auth');
-const validators = require('../middleware/validation');
+const { mitarbeiter: mitarbeiterValidation } = require('../middleware/validators');
+const { 
+  offsetPagination, 
+  addSortingAndFiltering 
+} = require('../middleware/pagination');
 
-// Alle Routen benötigen Authentifizierung
+// All routes require authentication
 router.use(authMiddleware.auth);
 
-// GET /api/mitarbeiter - Alle Mitarbeiter abrufen
+// GET /api/mitarbeiter - Get all employees with pagination
 router.get(
   '/',
+  offsetPagination,
+  addSortingAndFiltering(['nachname', 'vorname', 'position', 'isActive']),
+  mitarbeiterValidation.list,
   mitarbeiterController.getAllMitarbeiter
 );
 
-// GET /api/mitarbeiter/:id - Einen Mitarbeiter nach ID abrufen
+// GET /api/mitarbeiter/:id - Get employee by ID
 router.get(
   '/:id',
+  mitarbeiterValidation.validateId,
   mitarbeiterController.getMitarbeiterById
 );
 
-// POST /api/mitarbeiter - Neuen Mitarbeiter erstellen
-// Admin-Check entfernt
+// POST /api/mitarbeiter - Create new employee
 router.post(
   '/',
-  validators.mitarbeiterValidation,
+  mitarbeiterValidation.create,
   mitarbeiterController.createMitarbeiter
 );
 
-// PUT /api/mitarbeiter/:id - Mitarbeiter aktualisieren
-// Admin-Check entfernt
+// PUT /api/mitarbeiter/:id - Update employee
 router.put(
   '/:id',
-  validators.mitarbeiterValidation,
+  mitarbeiterValidation.validateId,
+  mitarbeiterValidation.update,
   mitarbeiterController.updateMitarbeiter
 );
 
-// POST /api/mitarbeiter/:id/arbeitszeit - Arbeitszeit hinzufügen
+// POST /api/mitarbeiter/:id/arbeitszeit - Add work time
 router.post(
   '/:id/arbeitszeit',
+  mitarbeiterValidation.validateId,
+  mitarbeiterValidation.addArbeitszeit,
   mitarbeiterController.addArbeitszeit
 );
 
-// POST /api/mitarbeiter/:id/dokument - Dokument hinzufügen
+// POST /api/mitarbeiter/:id/dokument - Add document
 router.post(
   '/:id/dokument',
+  mitarbeiterValidation.validateId,
+  mitarbeiterValidation.addDokument,
   mitarbeiterController.addDokument
 );
 
