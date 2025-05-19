@@ -4,10 +4,7 @@ const router = express.Router();
 const mitarbeiterController = require('../controllers/mitarbeiter.controller');
 const authMiddleware = require('../middleware/auth');
 const { mitarbeiter: mitarbeiterValidation } = require('../middleware/validators');
-const { 
-  offsetPagination, 
-  addSortingAndFiltering 
-} = require('../middleware/pagination');
+const pagination = require('../middleware/pagination');
 
 // All routes require authentication
 router.use(authMiddleware.auth);
@@ -15,8 +12,7 @@ router.use(authMiddleware.auth);
 // GET /api/mitarbeiter - Get all employees with pagination
 router.get(
   '/',
-  offsetPagination,
-  addSortingAndFiltering(['nachname', 'vorname', 'position', 'isActive']),
+  pagination.paginateOffset(20, 100),
   mitarbeiterValidation.list,
   mitarbeiterController.getAllMitarbeiter
 );

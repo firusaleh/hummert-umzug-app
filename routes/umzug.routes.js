@@ -4,11 +4,7 @@ const router = express.Router();
 const umzugController = require('../controllers/umzug.controller');
 const authMiddleware = require('../middleware/auth');
 const { umzug: umzugValidation } = require('../middleware/validators');
-const { 
-  offsetPagination, 
-  cursorPagination,
-  addSortingAndFiltering 
-} = require('../middleware/pagination');
+const pagination = require('../middleware/pagination');
 
 // All routes require authentication
 router.use(authMiddleware.auth);
@@ -16,8 +12,7 @@ router.use(authMiddleware.auth);
 // GET /api/umzuege - Get all moves with offset pagination
 router.get(
   '/',
-  offsetPagination,
-  addSortingAndFiltering(['startDatum', 'status', 'kundennummer', 'auftraggeber.name']),
+  pagination.paginateOffset(20, 100),
   umzugValidation.list,
   umzugController.getAllUmzuege
 );
@@ -25,7 +20,7 @@ router.get(
 // GET /api/umzuege/stream - Get moves with cursor-based pagination (for real-time)
 router.get(
   '/stream',
-  cursorPagination,
+  pagination.paginateCursor(),
   umzugController.getUmzuegeStream
 );
 

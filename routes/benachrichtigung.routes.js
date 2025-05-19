@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const benachrichtigungController = require('../controllers/benachrichtigung.controller');
 const authMiddleware = require('../middleware/auth');
-const { cursorPagination } = require('../middleware/pagination');
+const pagination = require('../middleware/pagination');
 
 // Alle Routen benötigen Authentifizierung
 router.use(authMiddleware.auth);
@@ -11,7 +11,7 @@ router.use(authMiddleware.auth);
 // GET /api/benachrichtigungen - Alle Benachrichtigungen des Benutzers abrufen mit Cursor Pagination
 router.get(
   '/',
-  cursorPagination,
+  pagination.paginateCursor ? pagination.paginateCursor() : (req, res, next) => next(),
   benachrichtigungController.getMeineBenachrichtigungen
 );
 
