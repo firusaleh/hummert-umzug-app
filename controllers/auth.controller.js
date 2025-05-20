@@ -1,272 +1,249 @@
-// controllers/auth.controller.js - Korrigierte Version
-const { User } = require('../models'); // Zentraler Import
+// controllers/auth.controller.js - Enhanced with security and validation
+const { User } = require('../models');
 const jwt = require('jsonwebtoken');
-const { validationResult } = require('express-validator');
+const { AppError, catchAsync } = require('../utils/error.utils');
+const { sendEmail } = require('../utils/email');
+const crypto = require('crypto');
 
-// Hilfsfunktion, um besser zu verstehen, was vom Frontend gesendet wird
-const logRequestBody = (req) => {
-  console.log('Request Body:', JSON.stringify(req.body, null, 2));
-};
-
-// Erstellt JWT Token
+// Create JWT Token with proper error handling
 const createToken = (user) => {
   if (!process.env.JWT_SECRET) {
-    console.error('WARNUNG: JWT_SECRET nicht definiert in Umgebungsvariablen!');
-    // Fallback für Entwicklungsumgebung (NICHT FÜR PRODUKTION VERWENDEN!)
-    return jwt.sign(
-      { id: user._id, name: user.name, role: user.role },
-      'development_secret_key_replace_in_production',
-      { expiresIn: '1d' }
-    );
+    throw new AppError('JWT_SECRET not configured', 500);
   }
   
   return jwt.sign(
     { id: user._id, name: user.name, role: user.role }, 
     process.env.JWT_SECRET, 
-    { expiresIn: '1d' }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 };
 
-exports.register = async (req, res) => {
-  try {
-    // Request-Body für Debugging loggen
-    logRequestBody(req);
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
-    }
-
-    // Extrahiere Daten aus dem Request
-    const { email, password, role } = req.body;
-    
-    // Das Modell verwendet 'name', nicht 'username'
-    const name = req.body.name || email.split('@')[0];
-
-    console.log('Verwendeter Name:', name);
-
-    // Prüfen, ob Benutzer bereits existiert
-    const userExists = await User.findOne({ email });
-
-    if (userExists) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Benutzer mit dieser E-Mail existiert bereits' 
-      });
-    }
-
-    // Neuen Benutzer erstellen mit den Feldern, die das Modell erwartet
-    const user = new User({
-      name,        // Verwende 'name' statt 'username'
-      email,
-      password,
-      role: role || 'mitarbeiter' // Erlaube das Setzen der Rolle beim Registrieren (Standardwert korrigiert)
-    });
-
-    await user.save();
-
-    // Token erstellen
-    const token = createToken(user);
-
-    res.status(201).json({
-      success: true,
-      message: 'Benutzer erfolgreich registriert',
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Fehler bei der Benutzerregistrierung:', error);
-    
-    // Verbesserte Fehlerbehandlung
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validierungsfehler',
-        errors: validationErrors
-      });
-    }
-    
-    res.status(500).json({ 
-      success: false,
-      message: 'Serverfehler bei der Registrierung', 
-      error: error.message 
-    });
-  }
+// Create and send JWT token
+const createSendToken = (user, statusCode, res) => {
+  const token = createToken(user);
+  
+  // Remove password from output
+  user.password = undefined;
+  
+  res.status(statusCode).json({
+    success: true,
+    token,
+    user
+  });
 };
 
-exports.login = async (req, res) => {
-  try {
-    // Request-Body für Debugging loggen
-    logRequestBody(req);
-    
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
-    }
-
-    const { email, password } = req.body;
-
-    // Benutzer finden
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Ungültige Anmeldedaten' });
-    }
-
-    // Passwort überprüfen
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Ungültige Anmeldedaten' });
-    }
-
-    // Prüfen, ob Benutzer aktiv ist
-    if (user.isActive !== undefined && !user.isActive) {
-      return res.status(401).json({ success: false, message: 'Dieses Konto wurde deaktiviert' });
-    }
-
-    // Login-Zeit aktualisieren
-    user.lastLogin = Date.now();
-    await user.save();
-
-    // Token erstellen
-    const token = createToken(user);
-
-    res.json({
-      success: true,
-      message: 'Login erfolgreich',
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Fehler beim Login:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Serverfehler beim Login', 
-      error: error.message 
-    });
+// Register new user
+exports.register = catchAsync(async (req, res, next) => {
+  const { email, password, name, role } = req.body;
+  
+  // Check if user already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new AppError('E-Mail-Adresse bereits registriert', 400));
   }
-}; 
+  
+  // Create new user
+  const user = await User.create({
+    name,
+    email,
+    password,
+    role: role || 'mitarbeiter'
+  });
+  
+  createSendToken(user, 201, res);
+});
 
-// Funktion zum Abrufen des eigenen Profils
-exports.getMe = async (req, res) => {
-  try {
-    // Der Benutzer ist bereits in req.user verfügbar, da die auth-Middleware ihn dort platziert hat
-    const user = await User.findById(req.user.id).select('-password');
-    
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Benutzer nicht gefunden' });
-    }
-    
-    res.json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    console.error('Fehler beim Abrufen des Benutzerprofils:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Serverfehler beim Abrufen des Benutzerprofils' 
-    });
+// Login user
+exports.login = catchAsync(async (req, res, next) => {
+  const { email, password } = req.body;
+  
+  // Check if email and password exist
+  if (!email || !password) {
+    return next(new AppError('Bitte E-Mail und Passwort angeben', 400));
   }
-};
-
-// Authentifizierungsstatus überprüfen
-exports.checkAuth = async (req, res) => {
-  try {
-    // req.user wird durch auth-Middleware hinzugefügt
-    const user = await User.findById(req.user.id).select('-password');
-    
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Nicht authentifiziert' });
-    }
-    
-    res.json({
-      success: true,
-      message: 'Authentifiziert',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Fehler bei der Authentifizierungsprüfung:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Serverfehler bei der Authentifizierungsprüfung'
-    });
+  
+  // Check if user exists && password is correct
+  const user = await User.findOne({ email }).select('+password');
+  
+  if (!user || !(await user.comparePassword(password))) {
+    return next(new AppError('Ungültige Anmeldedaten', 401));
   }
-};
-
-// Neue Funktion: Admin-Benutzer erstellen
-exports.createAdmin = async (req, res) => {
-  try {
-    // Request-Body für Debugging loggen
-    logRequestBody(req);
-
-    const { email, password, name } = req.body;
-    
-    // Prüfen, ob Benutzer bereits existiert
-    const userExists = await User.findOne({ email });
-
-    if (userExists) {
-      // Wenn der Benutzer existiert, zu Admin machen
-      userExists.role = 'admin';
-      await userExists.save();
-      
-      return res.status(200).json({ 
-        success: true,
-        message: 'Benutzer wurde zum Admin hochgestuft',
-        user: {
-          id: userExists._id,
-          name: userExists.name,
-          email: userExists.email,
-          role: userExists.role
-        }
-      });
-    }
-
-    // Neuen Admin-Benutzer erstellen
-    const user = new User({
-      name: name || email.split('@')[0],
-      email,
-      password,
-      role: 'admin'
-    });
-
-    await user.save();
-
-    // Token erstellen
-    const token = createToken(user);
-
-    res.status(201).json({
-      success: true,
-      message: 'Admin-Benutzer erfolgreich erstellt',
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Fehler beim Erstellen des Admin-Benutzers:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Serverfehler beim Erstellen des Admin-Benutzers', 
-      error: error.message 
-    });
+  
+  // Check if user is active
+  if (user.isActive === false) {
+    return next(new AppError('Dieses Konto wurde deaktiviert', 401));
   }
+  
+  // Update last login
+  user.lastLogin = Date.now();
+  await user.save({ validateBeforeSave: false });
+  
+  createSendToken(user, 200, res);
+});
+
+// Get current user profile
+exports.getMe = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id).select('-password');
+  
+  if (!user) {
+    return next(new AppError('Benutzer nicht gefunden', 404));
+  }
+  
+  res.json({
+    success: true,
+    user
+  });
+});
+
+// Check authentication status
+exports.checkAuth = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id).select('-password');
+  
+  if (!user) {
+    return next(new AppError('Nicht authentifiziert', 401));
+  }
+  
+  res.json({
+    success: true,
+    user
+  });
+});
+
+// Create admin user (protected route)
+exports.createAdmin = catchAsync(async (req, res, next) => {
+  const { email, password, name } = req.body;
+  
+  // Check if user already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new AppError('E-Mail-Adresse bereits registriert', 400));
+  }
+  
+  // Create admin user
+  const admin = await User.create({
+    name,
+    email,
+    password,
+    role: 'admin'
+  });
+  
+  createSendToken(admin, 201, res);
+});
+
+// Change password
+exports.changePassword = catchAsync(async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+  
+  // Get user from collection
+  const user = await User.findById(req.user.id).select('+password');
+  
+  // Check if current password is correct
+  if (!(await user.comparePassword(currentPassword))) {
+    return next(new AppError('Aktuelles Passwort ist falsch', 401));
+  }
+  
+  // Update password
+  user.password = newPassword;
+  await user.save();
+  
+  createSendToken(user, 200, res);
+});
+
+// Request password reset
+exports.resetPasswordRequest = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+  
+  // Get user based on email
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError('Kein Benutzer mit dieser E-Mail-Adresse gefunden', 404));
+  }
+  
+  // Generate reset token
+  const resetToken = user.createPasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+  
+  // Send reset email
+  const resetURL = `${req.protocol}://${req.get('host')}/api/auth/reset-password/${resetToken}`;
+  
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Passwort zurücksetzen',
+      message: `Um Ihr Passwort zurückzusetzen, klicken Sie bitte auf folgenden Link: ${resetURL}`
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'E-Mail zum Zurücksetzen des Passworts wurde gesendet'
+    });
+  } catch (err) {
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    
+    return next(new AppError('E-Mail konnte nicht gesendet werden', 500));
+  }
+});
+
+// Reset password
+exports.resetPassword = catchAsync(async (req, res, next) => {
+  const { token } = req.params;
+  const { newPassword } = req.body;
+  
+  // Get user based on the token
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+  
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() }
+  });
+  
+  if (!user) {
+    return next(new AppError('Token ist ungültig oder abgelaufen', 400));
+  }
+  
+  // Set new password
+  user.password = newPassword;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  await user.save();
+  
+  createSendToken(user, 200, res);
+});
+
+// Update user profile
+exports.updateProfile = catchAsync(async (req, res, next) => {
+  const { name, email, telefon, adresse } = req.body;
+  
+  // Don't allow password updates through this route
+  if (req.body.password) {
+    return next(new AppError('Diese Route ist nicht für Passwort-Updates. Bitte /change-password verwenden', 400));
+  }
+  
+  // Update user
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user.id,
+    { name, email, telefon, adresse },
+    {
+      new: true,
+      runValidators: true
+    }
+  ).select('-password');
+  
+  res.json({
+    success: true,
+    user: updatedUser
+  });
+});
+
+// Logout (client-side token removal)
+exports.logout = (req, res) => {
+  res.json({
+    success: true,
+    message: 'Erfolgreich abgemeldet'
+  });
 };

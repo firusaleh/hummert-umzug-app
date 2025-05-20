@@ -26,7 +26,7 @@ const angebotSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Entwurf', 'Gesendet', 'Akzeptiert', 'Abgelehnt'],
+    enum: ['Entwurf', 'Gesendet', 'Akzeptiert', 'Abgelehnt', 'Abgelaufen'],
     default: 'Entwurf'
   },
   gesamtbetrag: {

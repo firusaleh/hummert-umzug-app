@@ -214,6 +214,11 @@ const mitarbeiterQuerySchemas = {
     von: validators.isoDate.optional(),
     bis: validators.isoDate.optional(),
     projektId: validators.objectId.optional()
+  }),
+  
+  arbeitszeitQuery: Joi.object({
+    von: validators.isoDate.optional(),
+    bis: validators.isoDate.optional()
   })
 };
 
@@ -234,6 +239,7 @@ const mitarbeiterValidation = {
   updateUrlaub: createValidationMiddleware(mitarbeiterSchemas.updateUrlaub),
   list: createValidationMiddleware(mitarbeiterQuerySchemas.list, 'query'),
   zeiterfassung: createValidationMiddleware(mitarbeiterQuerySchemas.zeiterfassung, 'query'),
+  arbeitszeitQuery: createValidationMiddleware(mitarbeiterQuerySchemas.arbeitszeitQuery, 'query'),
   validateId: createValidationMiddleware(mitarbeiterParamSchemas.id, 'params')
 };
 

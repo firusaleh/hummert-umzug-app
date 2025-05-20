@@ -14,10 +14,11 @@ dotenv.config();
 // Import configs and middleware
 const config = require('./config/config');
 const routes = require('./routes');
-const { errorHandler, notFound } = require('./middleware/error.middleware');
+const errorHandler = require('./middleware/error.middleware');
 const configureSecurityMiddleware = require('./config/security');
 const { rateLimiters, corsOptions } = require('./utils/validators/security');
 const { startCleanupService } = require('./utils/token-cleanup');
+const { createNotFoundError } = require('./utils/error.utils');
 
 // Create Express app
 const app = express();
@@ -84,11 +85,14 @@ app.get('/health', (req, res) => {
 app.use('/api', routes);
 
 // API 404 handler
-app.use('/api', notFound);
+app.use('/api/*', (req, res, next) => {
+  next(createNotFoundError('API-Endpunkt'));
+});
 
 // Frontend info handler
 app.use('*', (req, res) => {
   res.status(404).json({
+    success: false,
     message: "This is the backend server. Frontend is available at https://www.lagerlogix.de",
     api_info: "API endpoints are available under /api"
   });
@@ -103,8 +107,6 @@ const connectWithRetry = () => {
   
   mongoose
     .connect(mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
       maxPoolSize: 10
     })

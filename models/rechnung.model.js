@@ -31,7 +31,7 @@ const rechnungSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Entwurf', 'Gesendet', 'Teilweise bezahlt', 'Bezahlt', 'Überfällig', 'Storniert'],
+    enum: ['Entwurf', 'Gesendet', 'Überfällig', 'Teilbezahlt', 'Bezahlt', 'Storniert'],
     default: 'Entwurf'
   },
   bezahltAm: {
@@ -39,7 +39,7 @@ const rechnungSchema = new mongoose.Schema({
   },
   zahlungsmethode: {
     type: String,
-    enum: ['Überweisung', 'Bar', 'Kreditkarte', 'PayPal', 'Sonstige'],
+    enum: ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift', 'Sonstige'],
     default: 'Überweisung'
   },
   gesamtbetrag: {

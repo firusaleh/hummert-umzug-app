@@ -38,7 +38,7 @@ const projektkostenSchema = new mongoose.Schema({
   },
   bezahlstatus: {
     type: String,
-    enum: ['Offen', 'Bezahlt', 'Storniert'],
+    enum: ['Offen', 'Genehmigt', 'Bezahlt', 'Abgelehnt'],
     default: 'Offen'
   },
   bezahltAm: {
@@ -46,7 +46,7 @@ const projektkostenSchema = new mongoose.Schema({
   },
   zahlungsmethode: {
     type: String,
-    enum: ['Überweisung', 'Bar', 'Kreditkarte', 'PayPal', 'Sonstige'],
+    enum: ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift', 'Sonstige'],
     default: 'Überweisung'
   }
 }, { timestamps: true });

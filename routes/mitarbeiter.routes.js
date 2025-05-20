@@ -4,7 +4,7 @@ const router = express.Router();
 const mitarbeiterController = require('../controllers/mitarbeiter.controller');
 const authMiddleware = require('../middleware/auth');
 const { mitarbeiter: mitarbeiterValidation } = require('../middleware/validators');
-const pagination = require('../middleware/pagination');
+const pagination = require('../middleware/pagination.fixed');
 
 // All routes require authentication
 router.use(authMiddleware.auth);
@@ -47,12 +47,27 @@ router.post(
   mitarbeiterController.addArbeitszeit
 );
 
+// GET /api/mitarbeiter/:id/arbeitszeit - Get work times for an employee
+router.get(
+  '/:id/arbeitszeit',
+  mitarbeiterValidation.validateId,
+  mitarbeiterValidation.arbeitszeitQuery,
+  mitarbeiterController.getArbeitszeiten
+);
+
 // POST /api/mitarbeiter/:id/dokument - Add document
 router.post(
   '/:id/dokument',
   mitarbeiterValidation.validateId,
   mitarbeiterValidation.addDokument,
   mitarbeiterController.addDokument
+);
+
+// DELETE /api/mitarbeiter/:id - Delete employee
+router.delete(
+  '/:id',
+  mitarbeiterValidation.validateId,
+  mitarbeiterController.deleteMitarbeiter
 );
 
 module.exports = router;

@@ -83,8 +83,8 @@ const umzugSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['angefragt', 'angebot', 'geplant', 'in_bearbeitung', 'abgeschlossen', 'storniert'],
-    default: 'angefragt'
+    enum: ['geplant', 'bestaetigt', 'in_bearbeitung', 'abgeschlossen', 'storniert'],
+    default: 'geplant'
   },
   preis: {
     netto: Number,
@@ -165,6 +165,34 @@ const umzugSchema = new mongoose.Schema({
     }
   }]
 }, { timestamps: true });
+
+// Pre-save middleware to validate dates
+umzugSchema.pre('save', function(next) {
+  if (this.startDatum && this.endDatum && this.startDatum > this.endDatum) {
+    return next(new Error('Startdatum muss vor Enddatum liegen'));
+  }
+  
+  // Ensure dates are valid Date objects
+  if (this.startDatum && !(this.startDatum instanceof Date)) {
+    this.startDatum = new Date(this.startDatum);
+  }
+  if (this.endDatum && !(this.endDatum instanceof Date)) {
+    this.endDatum = new Date(this.endDatum);
+  }
+  
+  next();
+});
+
+// Virtual for display-friendly address
+umzugSchema.virtual('auszugsadresseFormatted').get(function() {
+  const addr = this.auszugsadresse;
+  return addr ? `${addr.strasse} ${addr.hausnummer}, ${addr.plz} ${addr.ort}` : '';
+});
+
+umzugSchema.virtual('einzugsadresseFormatted').get(function() {
+  const addr = this.einzugsadresse;
+  return addr ? `${addr.strasse} ${addr.hausnummer}, ${addr.plz} ${addr.ort}` : '';
+});
 
 const Umzug = mongoose.model('Umzug', umzugSchema);
 

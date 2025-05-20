@@ -4,15 +4,14 @@ const { validators, schemas, createValidationMiddleware } = require('./common.va
 
 // Financial position schema
 const positionSchema = Joi.object({
-  beschreibung: validators.safeString.required()
-    .messages({ 'any.required': 'Beschreibung ist erforderlich' }),
+  bezeichnung: validators.safeString.required()
+    .messages({ 'any.required': 'Bezeichnung ist erforderlich' }),
   menge: validators.positiveNumber.required()
     .messages({ 'any.required': 'Menge ist erforderlich' }),
   einheit: validators.germanEnum(
     ['Stück', 'Stunden', 'Pauschale', 'm²', 'm³', 'km', 'kg'],
     'Einheit'
-  ).required()
-    .messages({ 'any.required': 'Einheit ist erforderlich' }),
+  ).optional().default('Stück'),
   einzelpreis: validators.positiveNumber.required()
     .messages({ 'any.required': 'Einzelpreis ist erforderlich' }),
   gesamtpreis: validators.positiveNumber.optional(),
@@ -28,7 +27,7 @@ const angebotSchemas = {
     gueltigBis: validators.isoDate.required()
       .messages({ 'any.required': 'Gültigkeitsdatum ist erforderlich' }),
     status: validators.germanEnum(
-      ['Entwurf', 'Gesendet', 'Angenommen', 'Abgelehnt', 'Abgelaufen'],
+      ['Entwurf', 'Gesendet', 'Akzeptiert', 'Abgelehnt', 'Abgelaufen'],
       'Status'
     ).optional().default('Entwurf'),
     mehrwertsteuer: Joi.number().min(0).max(100).optional().default(19),
@@ -47,7 +46,7 @@ const angebotSchemas = {
     umzug: validators.objectId.optional(),
     gueltigBis: validators.isoDate.optional(),
     status: validators.germanEnum(
-      ['Entwurf', 'Gesendet', 'Angenommen', 'Abgelehnt', 'Abgelaufen'],
+      ['Entwurf', 'Gesendet', 'Akzeptiert', 'Abgelehnt', 'Abgelaufen'],
       'Status'
     ).optional(),
     mehrwertsteuer: Joi.number().min(0).max(100).optional(),
@@ -72,7 +71,7 @@ const rechnungSchemas = {
       'Status'
     ).optional().default('Entwurf'),
     zahlungsmethode: validators.germanEnum(
-      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift'],
+      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift', 'Sonstige'],
       'Zahlungsmethode'
     ).optional().default('Überweisung'),
     mehrwertsteuer: Joi.number().min(0).max(100).optional().default(19),
@@ -101,7 +100,7 @@ const rechnungSchemas = {
     ).optional(),
     bezahltAm: validators.isoDate.optional(),
     zahlungsmethode: validators.germanEnum(
-      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift'],
+      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift', 'Sonstige'],
       'Zahlungsmethode'
     ).optional(),
     mehrwertsteuer: Joi.number().min(0).max(100).optional(),
@@ -122,7 +121,7 @@ const rechnungSchemas = {
   
   markAsPaid: Joi.object({
     zahlungsmethode: validators.germanEnum(
-      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift'],
+      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift', 'Sonstige'],
       'Zahlungsmethode'
     ).optional(),
     bezahltAm: validators.isoDate.optional(),
@@ -136,8 +135,7 @@ const projektkostenSchemas = {
   create: Joi.object({
     bezeichnung: validators.safeString.required()
       .messages({ 'any.required': 'Bezeichnung ist erforderlich' }),
-    umzug: validators.objectId.required()
-      .messages({ 'any.required': 'Umzug ist erforderlich' }),
+    umzug: validators.objectId.optional(),
     kategorie: validators.germanEnum(
       ['Personal', 'Fahrzeuge', 'Material', 'Unterauftrag', 'Sonstiges'],
       'Kategorie'
@@ -155,7 +153,7 @@ const projektkostenSchemas = {
     ).optional().default('Offen'),
     bezahltAm: validators.isoDate.optional(),
     zahlungsmethode: validators.germanEnum(
-      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift'],
+      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift', 'Sonstige'],
       'Zahlungsmethode'
     ).optional()
   }),
@@ -178,7 +176,7 @@ const projektkostenSchemas = {
     ).optional(),
     bezahltAm: validators.isoDate.optional(),
     zahlungsmethode: validators.germanEnum(
-      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift'],
+      ['Überweisung', 'Bar', 'PayPal', 'Kreditkarte', 'Lastschrift', 'Sonstige'],
       'Zahlungsmethode'
     ).optional()
   })
@@ -188,7 +186,7 @@ const projektkostenSchemas = {
 const finanzenQuerySchemas = {
   angebote: Joi.object({
     status: validators.germanEnum(
-      ['Entwurf', 'Gesendet', 'Angenommen', 'Abgelehnt', 'Abgelaufen'],
+      ['Entwurf', 'Gesendet', 'Akzeptiert', 'Abgelehnt', 'Abgelaufen'],
       'Status'
     ).optional(),
     kundeId: validators.objectId.optional(),

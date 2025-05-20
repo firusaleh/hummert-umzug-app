@@ -78,4 +78,11 @@ router.post(
   umzugController.addNotiz
 );
 
+// DELETE /api/umzuege/:id - Delete move
+router.delete(
+  '/:id',
+  umzugValidation.validateId,
+  umzugController.deleteUmzug
+);
+
 module.exports = router;

@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { auth, adminOnly } = require('../middleware/auth');
 const finanzenController = require('../controllers/finanzen.controller');
-const { finanzen: finanzenValidation } = require('../middleware/validators');
+const finanzenValidation = require('../middleware/validators/finanzen.validators');
 
 // All routes require authentication
 router.use(auth);
