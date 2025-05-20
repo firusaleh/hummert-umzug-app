@@ -8,6 +8,10 @@ const {
   createNotFoundError,
   AppError
 } = require('../utils/error.utils');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const Upload = require('../models/upload.model');
 
 const { 
   createOffsetPaginationResponse, 
@@ -269,5 +273,102 @@ exports.deleteMitarbeiter = catchAsync(async (req, res) => {
   res.json({
     success: true,
     message: 'Mitarbeiter erfolgreich gelöscht'
+  });
+});
+
+// Multer-Konfiguration für Profilbilder
+const profileImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../uploads/profile-images');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'profile-' + req.params.id + '-' + uniqueSuffix + ext);
+  }
+});
+
+const profileImageFilter = (req, file, cb) => {
+  // Nur Bilder erlauben
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Nur Bildformate (JPG, PNG, GIF, WEBP) sind erlaubt'), false);
+  }
+};
+
+const uploadProfileImage = multer({
+  storage: profileImageStorage,
+  fileFilter: profileImageFilter,
+  limits: { fileSize: 2 * 1024 * 1024 } // 2 MB Limit
+}).single('file');
+
+// Profilbild hochladen
+exports.uploadProfileImage = catchAsync(async (req, res) => {
+  const mitarbeiterId = req.params.id;
+  
+  // Überprüfen, ob der Mitarbeiter existiert
+  const mitarbeiter = await Mitarbeiter.findById(mitarbeiterId);
+  if (!mitarbeiter) {
+    throw createNotFoundError('Mitarbeiter');
+  }
+  
+  // Multer für den Upload verwenden
+  uploadProfileImage(req, res, async (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        // Multer-spezifischer Fehler (z.B. Dateigröße überschritten)
+        throw new AppError(`Upload-Fehler: ${err.message}`, 400);
+      } else {
+        // Sonstige Fehler (z.B. Dateityp nicht erlaubt)
+        throw new AppError(`Upload-Fehler: ${err.message}`, 400);
+      }
+    }
+    
+    if (!req.file) {
+      throw new AppError('Keine Datei hochgeladen', 400);
+    }
+    
+    try {
+      // Upload-Eintrag in der Datenbank erstellen
+      const uploadEintrag = new Upload({
+        originalname: req.file.originalname,
+        filename: req.file.filename,
+        pfad: `/uploads/profile-images/${req.file.filename}`,
+        mimetype: req.file.mimetype,
+        groesse: req.file.size,
+        kategorie: 'mitarbeiter',
+        bezugId: mitarbeiterId,
+        bezugModell: 'Mitarbeiter',
+        hochgeladenVon: req.user.id
+      });
+      
+      await uploadEintrag.save();
+      
+      // Profilbild-Pfad im Mitarbeiter aktualisieren
+      mitarbeiter.profilbild = uploadEintrag.pfad;
+      await mitarbeiter.save();
+      
+      res.status(201).json({
+        success: true,
+        message: 'Profilbild erfolgreich hochgeladen',
+        data: {
+          profilbild: mitarbeiter.profilbild,
+          upload: uploadEintrag
+        }
+      });
+    } catch (error) {
+      // Wenn ein Fehler auftritt, die hochgeladene Datei löschen
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      throw new AppError(`Fehler beim Speichern des Profilbilds: ${error.message}`, 500);
+    }
   });
 });

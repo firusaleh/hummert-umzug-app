@@ -26,6 +26,7 @@ db.upload = require('./upload.model');
 // Umzugsverwaltung
 db.umzug = require('./umzug.model');
 db.aufnahme = require('./aufnahme.model');
+db.fahrzeug = require('./fahrzeug.model');
 
 // Mitarbeiterverwaltung
 db.mitarbeiter = require('./mitarbeiter.model');

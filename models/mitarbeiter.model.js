@@ -94,6 +94,10 @@ const mitarbeiterSchema = new mongoose.Schema({
     pfad: String,
     datum: Date
   }],
+  profilbild: {
+    type: String,
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true

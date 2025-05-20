@@ -18,6 +18,7 @@ const benachrichtigungRoutes = require('./benachrichtigung.routes');
 const uploadRoutes = require('./upload.routes');
 const zeiterfassungRoutes = require('./zeiterfassung.routes'); // Neue Route für Zeiterfassung
 const finanzenRoutes = require('./finanzen.routes'); // Neue Route für Finanzen
+const fahrzeugRoutes = require('./fahrzeug.routes'); // Neue Route für Fahrzeuge
 
 // Health-Check-Route für API-Verfügbarkeitsprüfung
 router.get('/health', (req, res) => {
@@ -51,6 +52,7 @@ router.use('/benachrichtigungen', benachrichtigungRoutes);
 router.use('/uploads', uploadRoutes);
 router.use('/zeiterfassung', zeiterfassungRoutes); // Neue Route für Zeiterfassung registriert
 router.use('/finanzen', finanzenRoutes); // Neue Route für Finanzen registriert
+router.use('/fahrzeuge', fahrzeugRoutes); // Neue Route für Fahrzeuge registriert
 
 // Route zum Löschen aller Beispieldaten (nur für Admins)
 router.delete('/delete-example-data', protect, admin, fileController.deleteAllExampleData);

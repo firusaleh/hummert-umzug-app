@@ -70,4 +70,11 @@ router.delete(
   mitarbeiterController.deleteMitarbeiter
 );
 
+// POST /api/mitarbeiter/:id/profile-image - Upload profile image
+router.post(
+  '/:id/profile-image',
+  mitarbeiterValidation.validateId,
+  mitarbeiterController.uploadProfileImage
+);
+
 module.exports = router;

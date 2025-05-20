@@ -4,6 +4,7 @@ const umzugValidation = require('./umzug.validators');
 const mitarbeiterValidation = require('./mitarbeiter.validators');
 const finanzenValidation = require('./finanzen.validators');
 const fileValidation = require('./file.validators');
+const fahrzeugValidation = require('./fahrzeug.validator');
 const { validators, schemas, formatValidationErrors, createValidationMiddleware } = require('./common.validators');
 
 module.exports = {
@@ -21,6 +22,9 @@ module.exports = {
   
   // File validators
   file: fileValidation,
+  
+  // Fahrzeug validators
+  fahrzeug: fahrzeugValidation,
   
   // Common validators and utilities
   common: {
