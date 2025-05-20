@@ -1,8 +1,12 @@
-// utils/email.js
-const nodemailer = require('nodemailer');
+/**
+ * email.js - Email utility functions
+ * Provides backward compatibility with existing code while using the new EmailService
+ */
+
+const EmailService = require('../services/email.service');
 
 /**
- * Sends an email using nodemailer
+ * Sends an email using EmailService
  * @param {Object} options - Email options
  * @param {string} options.email - Recipient email
  * @param {string} options.subject - Email subject
@@ -11,53 +15,13 @@ const nodemailer = require('nodemailer');
  * @returns {Promise} - Promise that resolves when email is sent
  */
 exports.sendEmail = async (options) => {
-  // Create a transporter - for development, use ethereal.email (nodemailer test account)
-  let transporter;
-  
-  if (process.env.NODE_ENV === 'production') {
-    // Production email configuration
-    transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: process.env.EMAIL_PORT || 587,
-      secure: process.env.EMAIL_SECURE === 'true',
-      auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD
-      }
-    });
-  } else {
-    // For development, use ethereal.email test account or other test service
-    const testAccount = await nodemailer.createTestAccount();
-    
-    transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass
-      }
-    });
-  }
-
-  // Define email options
-  const mailOptions = {
-    from: `${process.env.EMAIL_FROM_NAME || 'Hummert Umzug'} <${process.env.EMAIL_FROM || 'noreply@hummert-umzug.de'}>`,
+  // Convert old format to new service format
+  return await EmailService.sendEmail({
     to: options.email,
     subject: options.subject,
     text: options.message,
     html: options.html
-  };
-
-  // Send the email
-  const info = await transporter.sendMail(mailOptions);
-  
-  // Log email URL in development for testing
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`Email sent: ${nodemailer.getTestMessageUrl(info)}`);
-  }
-  
-  return info;
+  });
 };
 
 /**
@@ -66,6 +30,9 @@ exports.sendEmail = async (options) => {
  * @returns {string} - Complete HTML email template
  */
 exports.createHtmlTemplate = (content) => {
+  // Use the content directly but add current year dynamically
+  const contentWithYear = content.replace('${new Date().getFullYear()}', new Date().getFullYear());
+  
   return `
     <!DOCTYPE html>
     <html lang="de">
@@ -157,10 +124,16 @@ exports.sendPasswordResetEmail = async (options) => {
     <p>Mit freundlichen Grüßen<br>Das Hummert Umzug Team</p>
   `;
   
-  return exports.sendEmail({
+  const user = {
     email: options.email,
+    name: options.name
+  };
+  
+  // Use the EmailService but keep the same API
+  return await EmailService.sendEmail({
+    to: options.email,
     subject: 'Passwort zurücksetzen für Hummert Umzug',
-    message: `Sie haben eine Anfrage zum Zurücksetzen Ihres Passworts gestellt. Bitte klicken Sie auf folgenden Link: ${options.resetUrl}`,
+    text: `Sie haben eine Anfrage zum Zurücksetzen Ihres Passworts gestellt. Bitte klicken Sie auf folgenden Link: ${options.resetUrl}`,
     html: exports.createHtmlTemplate(htmlContent)
   });
 };
@@ -181,10 +154,11 @@ exports.sendWelcomeEmail = async (options) => {
     <p>Mit freundlichen Grüßen<br>Das Hummert Umzug Team</p>
   `;
   
-  return exports.sendEmail({
-    email: options.email,
+  // Use the EmailService but keep the same API
+  return await EmailService.sendEmail({
+    to: options.email,
     subject: 'Willkommen bei Hummert Umzug',
-    message: `Willkommen bei Hummert Umzug! Ihr Konto wurde erfolgreich erstellt.`,
+    text: `Willkommen bei Hummert Umzug! Ihr Konto wurde erfolgreich erstellt.`,
     html: exports.createHtmlTemplate(htmlContent)
   });
 };

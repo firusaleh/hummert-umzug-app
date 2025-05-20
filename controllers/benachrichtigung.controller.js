@@ -1,5 +1,9 @@
-// controllers/benachrichtigung.controller.js - Updated with standardized error handling
-const Benachrichtigung = require('../models/benachrichtigung.model');
+/**
+ * benachrichtigung.controller.js - Controller for notification endpoints
+ * Uses standardized error handling and service layer pattern
+ */
+
+const NotificationService = require('../services/notification.service');
 const User = require('../models/user');
 const Umzug = require('../models/umzug.model');
 const nodemailer = require('nodemailer');
@@ -10,41 +14,16 @@ const {
   createForbiddenError
 } = require('../utils/error.utils');
 
-const { 
-  createCursorPaginatedResponse,
-  createSearchFilter 
-} = require('../middleware/pagination');
-
-// Erstelle eine neue Benachrichtigung mit vollständiger Validierung
-const createNotification = async (data) => {
-  const { empfaenger, titel, inhalt, typ = 'info', linkUrl, bezug, erstelltVon } = data;
-  
-  // Prüfen, ob der Empfänger existiert
-  const user = await User.findById(empfaenger);
-  if (!user) {
-    throw new AppError('Empfänger existiert nicht', 400);
-  }
-  
-  const benachrichtigung = new Benachrichtigung({
-    empfaenger,
-    titel,
-    inhalt,
-    typ,
-    linkUrl,
-    bezug,
-    erstelltVon
-  });
-  
-  await benachrichtigung.save();
-  return benachrichtigung;
-};
-
-// Alle Benachrichtigungen eines Benutzers abrufen mit Cursor Pagination
+/**
+ * @desc    Get user's notifications with pagination
+ * @route   GET /api/benachrichtigungen
+ * @access  Private
+ */
 exports.getMeineBenachrichtigungen = catchAsync(async (req, res) => {
-  const { gelesen, typ, search, sortBy = 'createdAt:desc' } = req.query;
+  const { gelesen, typ, search, page = 1, limit = 20 } = req.query;
   
-  // Filter erstellen
-  const filter = { empfaenger: req.user.id };
+  // Build filter and options
+  const filter = {};
   
   if (gelesen !== undefined) {
     filter.gelesen = gelesen === 'true';
@@ -64,43 +43,32 @@ exports.getMeineBenachrichtigungen = catchAsync(async (req, res) => {
     ];
   }
   
-  // Parse sort options
-  const [sortField, sortOrder] = sortBy.split(':');
-  const sort = { [sortField]: sortOrder === 'desc' ? -1 : 1 };
+  const options = {
+    filter,
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+    showRead: gelesen === 'true'
+  };
   
-  // Build query
-  const query = Benachrichtigung.find(filter)
-    .populate('erstelltVon', 'name email')
-    .populate('bezug.id')
-    .sort(sort);
-  
-  // Create cursor-based response
-  const response = await createCursorPaginatedResponse(
-    Benachrichtigung, 
-    filter, 
-    req.pagination || { limit: 20, sort }
+  const { data, pagination } = await NotificationService.getUserNotifications(
+    req.user.id, 
+    options
   );
-  
-  // Füge populierte Daten hinzu
-  if (response.data.length > 0) {
-    response.data = await Benachrichtigung.populate(response.data, [
-      { path: 'erstelltVon', select: 'name email' },
-      { path: 'bezug.id' }
-    ]);
-  }
   
   res.json({
     success: true,
-    ...response
+    data,
+    pagination
   });
 });
 
-// Ungelesene Benachrichtigungen zählen
+/**
+ * @desc    Get count of unread notifications
+ * @route   GET /api/benachrichtigungen/ungelesen/anzahl
+ * @access  Private
+ */
 exports.getUngeleseneAnzahl = catchAsync(async (req, res) => {
-  const count = await Benachrichtigung.countDocuments({
-    empfaenger: req.user.id,
-    gelesen: false
-  });
+  const count = await NotificationService.getUnreadCount(req.user.id);
   
   res.json({
     success: true,
@@ -108,22 +76,16 @@ exports.getUngeleseneAnzahl = catchAsync(async (req, res) => {
   });
 });
 
-// Benachrichtigung als gelesen markieren
+/**
+ * @desc    Mark notification as read
+ * @route   PATCH /api/benachrichtigungen/:id/gelesen
+ * @access  Private
+ */
 exports.markiereAlsGelesen = catchAsync(async (req, res) => {
-  const benachrichtigung = await Benachrichtigung.findById(req.params.id);
-  
-  if (!benachrichtigung) {
-    throw createNotFoundError('Benachrichtigung');
-  }
-  
-  // Prüfen, ob der Benutzer der Empfänger ist
-  if (benachrichtigung.empfaenger.toString() !== req.user.id) {
-    throw createForbiddenError('Sie haben keine Berechtigung, diese Benachrichtigung zu bearbeiten');
-  }
-  
-  benachrichtigung.gelesen = true;
-  benachrichtigung.gelesenAm = new Date();
-  await benachrichtigung.save();
+  const benachrichtigung = await NotificationService.markAsRead(
+    req.params.id,
+    req.user.id
+  );
   
   res.json({
     success: true,
@@ -132,34 +94,37 @@ exports.markiereAlsGelesen = catchAsync(async (req, res) => {
   });
 });
 
-// Alle Benachrichtigungen als gelesen markieren
+/**
+ * @desc    Mark all notifications as read
+ * @route   PATCH /api/benachrichtigungen/alle-gelesen
+ * @access  Private
+ */
 exports.alleAlsGelesenMarkieren = catchAsync(async (req, res) => {
-  const result = await Benachrichtigung.updateMany(
-    { empfaenger: req.user.id, gelesen: false },
-    { 
-      gelesen: true,
-      gelesenAm: new Date()
-    }
-  );
+  const result = await NotificationService.markAllAsRead(req.user.id);
   
   res.json({ 
     success: true,
     message: 'Alle Benachrichtigungen als gelesen markiert',
-    data: { modifiedCount: result.modifiedCount }
+    data: { modifiedCount: result.count }
   });
 });
 
-// Einzelne Benachrichtigung abrufen
+/**
+ * @desc    Get specific notification
+ * @route   GET /api/benachrichtigungen/:id
+ * @access  Private
+ */
 exports.getBenachrichtigung = catchAsync(async (req, res) => {
-  const benachrichtigung = await Benachrichtigung.findById(req.params.id)
-    .populate('erstelltVon', 'name email')
-    .populate('bezug.id');
+  const benachrichtigung = await NotificationService.findById(
+    Benachrichtigung,
+    req.params.id,
+    {
+      populate: ['erstelltVon', 'bezug.id'],
+      resourceName: 'Benachrichtigung'
+    }
+  );
   
-  if (!benachrichtigung) {
-    throw createNotFoundError('Benachrichtigung');
-  }
-  
-  // Prüfen, ob der Benutzer der Empfänger ist
+  // Ensure the notification belongs to the user
   if (benachrichtigung.empfaenger.toString() !== req.user.id) {
     throw createForbiddenError('Sie haben keine Berechtigung, diese Benachrichtigung anzusehen');
   }
@@ -170,30 +135,34 @@ exports.getBenachrichtigung = catchAsync(async (req, res) => {
   });
 });
 
-// Neue Benachrichtigung erstellen (nur für Admins)
+/**
+ * @desc    Create a new notification (Admin only)
+ * @route   POST /api/benachrichtigungen
+ * @access  Private/Admin
+ */
 exports.createBenachrichtigung = catchAsync(async (req, res) => {
   const { empfaenger, titel, inhalt, typ, linkUrl, bezug } = req.body;
   
-  // Validierung
+  // Validation
   if (!empfaenger || !titel || !inhalt) {
     throw new AppError('Empfänger, Titel und Inhalt sind erforderlich', 400);
   }
   
-  // Typ validieren
+  // Validate type
   if (typ && !['info', 'warnung', 'erinnerung', 'erfolg'].includes(typ)) {
     throw new AppError('Ungültiger Benachrichtigungstyp', 400);
   }
   
-  // Bezug validieren
+  // Validate reference type
   if (bezug && bezug.typ && !['umzug', 'aufnahme', 'mitarbeiter', 'task', 'system'].includes(bezug.typ)) {
     throw new AppError('Ungültiger Bezugstyp', 400);
   }
   
-  const benachrichtigung = await createNotification({
+  const benachrichtigung = await NotificationService.createNotification({
     empfaenger,
     titel,
     inhalt,
-    typ,
+    typ: typ || 'info',
     linkUrl,
     bezug,
     erstelltVon: req.user.id
@@ -206,72 +175,62 @@ exports.createBenachrichtigung = catchAsync(async (req, res) => {
   });
 });
 
-// Massenbenachrichtigungen erstellen (nur für Admins)
+/**
+ * @desc    Create mass notifications (Admin only)
+ * @route   POST /api/benachrichtigungen/masse
+ * @access  Private/Admin
+ */
 exports.createMassenbenachrichtigung = catchAsync(async (req, res) => {
-  const { empfaengerGruppe, empfaengerIds, titel, inhalt, typ, linkUrl } = req.body;
+  const { empfaengerGruppe, empfaengerIds, titel, inhalt, typ, linkUrl, bezug } = req.body;
   
-  // Validierung
+  // Validation
   if (!titel || !inhalt) {
     throw new AppError('Titel und Inhalt sind erforderlich', 400);
   }
   
-  let empfaenger = [];
+  let userIds = [];
   
-  // Empfänger bestimmen
+  // Determine recipients
   if (empfaengerGruppe === 'alle') {
     const users = await User.find({ isActive: true }).select('_id');
-    empfaenger = users.map(u => u._id);
+    userIds = users.map(u => u._id);
   } else if (empfaengerGruppe === 'mitarbeiter') {
     const users = await User.find({ role: 'mitarbeiter', isActive: true }).select('_id');
-    empfaenger = users.map(u => u._id);
+    userIds = users.map(u => u._id);
   } else if (empfaengerIds && empfaengerIds.length > 0) {
-    empfaenger = empfaengerIds;
+    userIds = empfaengerIds;
   } else {
     throw new AppError('Keine Empfänger angegeben', 400);
   }
   
-  // Benachrichtigungen erstellen
-  const benachrichtigungen = await Promise.all(
-    empfaenger.map(empfaengerId => 
-      createNotification({
-        empfaenger: empfaengerId,
-        titel,
-        inhalt,
-        typ: typ || 'info',
-        linkUrl,
-        erstelltVon: req.user.id
-      }).catch(err => {
-        // Bei Fehler mit einzelnem Empfänger nur diese überspringen
-        console.error(`Fehler beim Erstellen der Benachrichtigung für ${empfaengerId}:`, err.message);
-        return null;
-      })
-    )
-  );
+  // Create batch notifications
+  const context = bezug ? { type: bezug.typ, id: bezug.id } : null;
   
-  // Erfolgreiche Benachrichtigungen zählen
-  const erfolgreicheBenachrichtigungen = benachrichtigungen.filter(b => b !== null);
+  const result = await NotificationService.createBatchNotifications(
+    userIds,
+    titel,
+    inhalt,
+    {
+      type: typ || 'info',
+      link: linkUrl,
+      context
+    }
+  );
   
   res.status(201).json({
     success: true,
-    message: `${erfolgreicheBenachrichtigungen.length} Benachrichtigungen erfolgreich erstellt`,
-    data: { count: erfolgreicheBenachrichtigungen.length }
+    message: `${result.count} Benachrichtigungen erfolgreich erstellt`,
+    data: { count: result.count }
   });
 });
 
-// Benachrichtigung löschen
+/**
+ * @desc    Delete a notification
+ * @route   DELETE /api/benachrichtigungen/:id
+ * @access  Private
+ */
 exports.deleteBenachrichtigung = catchAsync(async (req, res) => {
-  const benachrichtigung = await Benachrichtigung.findById(req.params.id);
-  
-  if (!benachrichtigung) {
-    throw createNotFoundError('Benachrichtigung');
-  }
-  
-  // Prüfen, ob der Benutzer der Empfänger ist oder Admin
-  if (benachrichtigung.empfaenger.toString() !== req.user.id && req.user.role !== 'admin') {
-    throw createForbiddenError('Sie haben keine Berechtigung, diese Benachrichtigung zu löschen');
-  }
-  
-  await benachrichtigung.deleteOne();
+  await NotificationService.deleteNotification(req.params.id, req.user.id);
   
   res.json({
     success: true,
@@ -279,9 +238,13 @@ exports.deleteBenachrichtigung = catchAsync(async (req, res) => {
   });
 });
 
-// Erinnerungen für offene Tasks erstellen
+/**
+ * @desc    Create reminders for open tasks
+ * @route   POST /api/benachrichtigungen/task-erinnerungen
+ * @access  Private/Admin
+ */
 exports.erstelleTaskErinnerungen = catchAsync(async (req, res) => {
-  // Alle Umzüge mit offenen Tasks in der nächsten Woche finden
+  // Find all moves with open tasks in the next week
   const jetzt = new Date();
   const eineWocheVoraus = new Date();
   eineWocheVoraus.setDate(eineWocheVoraus.getDate() + 7);
@@ -293,40 +256,29 @@ exports.erstelleTaskErinnerungen = catchAsync(async (req, res) => {
   
   let erstellteBenachrichtigungen = 0;
   
-  // Für jeden Umzug Erinnerungen erstellen
+  // Create reminders for each move
   for (const umzug of umzuege) {
     for (const task of umzug.tasks) {
       if (!task.erledigt && task.zugewiesen) {
-        // Prüfen, ob bereits eine Erinnerung existiert
-        const existierendeBenachrichtigung = await Benachrichtigung.findOne({
-          empfaenger: task.zugewiesen,
-          'bezug.typ': 'umzug',
-          'bezug.id': umzug._id,
-          inhalt: { $regex: task.beschreibung },
-          createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Nur in den letzten 24 Stunden
-        });
-        
-        if (!existierendeBenachrichtigung) {
-          try {
-            // Neue Erinnerung erstellen
-            await createNotification({
-              empfaenger: task.zugewiesen,
-              titel: 'Offene Aufgabe für bevorstehenden Umzug',
-              inhalt: `Sie haben eine offene Aufgabe für den Umzug am ${umzug.startDatum.toLocaleDateString('de-DE')}: ${task.beschreibung}`,
-              typ: 'erinnerung',
-              linkUrl: `/umzuege/${umzug._id}`,
-              bezug: {
-                typ: 'umzug',
+        try {
+          // Create a new reminder with duplicate check
+          await NotificationService.createSystemNotification(
+            task.zugewiesen,
+            'Offene Aufgabe für bevorstehenden Umzug',
+            `Sie haben eine offene Aufgabe für den Umzug am ${umzug.startDatum.toLocaleDateString('de-DE')}: ${task.beschreibung}`,
+            {
+              type: 'erinnerung',
+              link: `/umzuege/${umzug._id}`,
+              context: {
+                type: 'umzug',
                 id: umzug._id
-              },
-              erstelltVon: req.user.id
-            });
-            
-            erstellteBenachrichtigungen++;
-          } catch (err) {
-            console.error(`Fehler beim Erstellen der Erinnerung für Task ${task._id}:`, err.message);
-            // Weiter mit der nächsten Task
-          }
+              }
+            }
+          );
+          
+          erstellteBenachrichtigungen++;
+        } catch (err) {
+          console.error(`Fehler beim Erstellen der Erinnerung für Task ${task._id}:`, err.message);
         }
       }
     }
@@ -339,22 +291,26 @@ exports.erstelleTaskErinnerungen = catchAsync(async (req, res) => {
   });
 });
 
-// E-Mail-Benachrichtigung senden
+/**
+ * @desc    Send email notification
+ * @route   POST /api/benachrichtigungen/email
+ * @access  Private/Admin
+ */
 exports.sendEmailBenachrichtigung = catchAsync(async (req, res) => {
   const { empfaenger, betreff, inhalt, html = false } = req.body;
   
-  // Validierung
+  // Validation
   if (!empfaenger || !betreff || !inhalt) {
     throw new AppError('Empfänger, Betreff und Inhalt sind erforderlich', 400);
   }
   
-  // Prüfen, ob der Empfänger existiert
+  // Check if recipient exists
   const user = await User.findById(empfaenger);
   if (!user || !user.email) {
     throw new AppError('Empfänger existiert nicht oder hat keine E-Mail-Adresse', 400);
   }
   
-  // E-Mail-Transporter erstellen (mit besserer Fehlerbehandlung)
+  // Create email transporter
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     throw new AppError('E-Mail-Konfiguration fehlt', 500);
   }
@@ -370,7 +326,7 @@ exports.sendEmailBenachrichtigung = catchAsync(async (req, res) => {
     }
   });
   
-  // E-Mail-Optionen
+  // Email options
   const mailOptions = {
     from: `${process.env.EMAIL_FROM_NAME || 'Hummert Umzug'} <${process.env.EMAIL_USER}>`,
     to: user.email,
@@ -383,11 +339,11 @@ exports.sendEmailBenachrichtigung = catchAsync(async (req, res) => {
     }
   };
   
-  // E-Mail senden
+  // Send email
   const info = await transporter.sendMail(mailOptions);
   
-  // Benachrichtigung in der Datenbank speichern
-  await createNotification({
+  // Create notification for the email
+  await NotificationService.createNotification({
     empfaenger,
     titel: betreff,
     inhalt: `E-Mail gesendet: ${betreff}`,
@@ -402,7 +358,11 @@ exports.sendEmailBenachrichtigung = catchAsync(async (req, res) => {
   });
 });
 
-// Benachrichtigungseinstellungen abrufen
+/**
+ * @desc    Get notification settings
+ * @route   GET /api/benachrichtigungen/einstellungen
+ * @access  Private
+ */
 exports.getEinstellungen = catchAsync(async (req, res) => {
   const user = await User.findById(req.user.id).select('benachrichtigungseinstellungen');
   
@@ -427,7 +387,11 @@ exports.getEinstellungen = catchAsync(async (req, res) => {
   });
 });
 
-// Benachrichtigungseinstellungen aktualisieren
+/**
+ * @desc    Update notification settings
+ * @route   PATCH /api/benachrichtigungen/einstellungen
+ * @access  Private
+ */
 exports.updateEinstellungen = catchAsync(async (req, res) => {
   const { email, push, typen } = req.body;
   
@@ -436,7 +400,7 @@ exports.updateEinstellungen = catchAsync(async (req, res) => {
     throw createNotFoundError('Benutzer');
   }
   
-  // Einstellungen aktualisieren
+  // Update settings
   if (!user.benachrichtigungseinstellungen) {
     user.benachrichtigungseinstellungen = {};
   }
