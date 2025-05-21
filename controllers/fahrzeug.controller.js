@@ -78,6 +78,17 @@ exports.createFahrzeug = catchAsync(async (req, res) => {
     throw createValidationError(errors);
   }
   
+  // Process and prepare nested data structures if they don't exist
+  if (req.body.kapazitaet) {
+    if (!req.body.kapazitaet.ladeflaeche) {
+      req.body.kapazitaet.ladeflaeche = {};
+    }
+  } else {
+    req.body.kapazitaet = {
+      ladeflaeche: {}
+    };
+  }
+  
   // Get data from request
   const fahrzeugData = {
     ...req.body,
@@ -102,6 +113,13 @@ exports.updateFahrzeug = catchAsync(async (req, res) => {
     throw createValidationError(errors);
   }
   
+  // Process and prepare nested data structures if they don't exist
+  if (req.body.kapazitaet) {
+    if (!req.body.kapazitaet.ladeflaeche) {
+      req.body.kapazitaet.ladeflaeche = {};
+    }
+  }
+  
   // Get the vehicle to update
   const fahrzeug = await Fahrzeug.findById(req.params.id);
   
@@ -114,8 +132,18 @@ exports.updateFahrzeug = catchAsync(async (req, res) => {
     // Handle nested objects
     if (typeof req.body[key] === 'object' && req.body[key] !== null) {
       if (!fahrzeug[key]) fahrzeug[key] = {};
+      
       Object.keys(req.body[key]).forEach(nestedKey => {
-        fahrzeug[key][nestedKey] = req.body[key][nestedKey];
+        // Handle deeply nested objects (like ladeflaeche)
+        if (typeof req.body[key][nestedKey] === 'object' && req.body[key][nestedKey] !== null) {
+          if (!fahrzeug[key][nestedKey]) fahrzeug[key][nestedKey] = {};
+          
+          Object.keys(req.body[key][nestedKey]).forEach(deepKey => {
+            fahrzeug[key][nestedKey][deepKey] = req.body[key][nestedKey][deepKey];
+          });
+        } else {
+          fahrzeug[key][nestedKey] = req.body[key][nestedKey];
+        }
       });
     } else {
       fahrzeug[key] = req.body[key];

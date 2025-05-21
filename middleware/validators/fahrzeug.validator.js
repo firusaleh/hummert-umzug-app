@@ -34,8 +34,8 @@ const create = [
     .trim()
     .notEmpty()
     .withMessage('Kennzeichen ist erforderlich')
-    .matches(/^[A-ZÄÖÜ]{1,3}-[A-ZÄÖÜ]{1,2} [0-9]{1,4}$/)
-    .withMessage('Ungültiges Kennzeichen-Format (z.B. M-AB 1234)'),
+    .matches(/^[A-ZÄÖÜ]{1,3}-[A-ZÄÖÜ]{1,2} [0-9A-ZÄÖÜ]{1,6}$/)
+    .withMessage('Ungültiges Kennzeichen-Format (z.B. M-AB 1234 oder HH-MS 2023E)'),
   
   body('bezeichnung')
     .trim()
@@ -59,7 +59,8 @@ const create = [
   body('baujahr')
     .optional()
     .isInt({ min: 1950, max: new Date().getFullYear() })
-    .withMessage(`Baujahr muss zwischen 1950 und ${new Date().getFullYear()} liegen`),
+    .withMessage(`Baujahr muss zwischen 1950 und ${new Date().getFullYear()} liegen`)
+    .toInt(),
   
   body('anschaffungsdatum')
     .optional()
@@ -74,7 +75,8 @@ const create = [
   body('kilometerstand')
     .optional()
     .isInt({ min: 0 })
-    .withMessage('Kilometerstand muss eine positive Zahl sein'),
+    .withMessage('Kilometerstand muss eine positive Zahl sein')
+    .toInt(),
   
   body('naechsterService')
     .optional()
@@ -83,23 +85,59 @@ const create = [
   
   body('kapazitaet.ladeflaeche.laenge')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Länge der Ladefläche muss positiv sein'),
+    .custom((value, { req }) => {
+      // Only validate if kapazitaet and ladeflaeche exist
+      if (req.body.kapazitaet && req.body.kapazitaet.ladeflaeche && value !== undefined) {
+        if (isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+          throw new Error('Länge der Ladefläche muss positiv sein');
+        }
+        // Convert to number
+        req.body.kapazitaet.ladeflaeche.laenge = parseFloat(value);
+      }
+      return true;
+    }),
   
   body('kapazitaet.ladeflaeche.breite')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Breite der Ladefläche muss positiv sein'),
+    .custom((value, { req }) => {
+      // Only validate if kapazitaet and ladeflaeche exist
+      if (req.body.kapazitaet && req.body.kapazitaet.ladeflaeche && value !== undefined) {
+        if (isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+          throw new Error('Breite der Ladefläche muss positiv sein');
+        }
+        // Convert to number
+        req.body.kapazitaet.ladeflaeche.breite = parseFloat(value);
+      }
+      return true;
+    }),
   
   body('kapazitaet.ladeflaeche.hoehe')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Höhe der Ladefläche muss positiv sein'),
+    .custom((value, { req }) => {
+      // Only validate if kapazitaet and ladeflaeche exist
+      if (req.body.kapazitaet && req.body.kapazitaet.ladeflaeche && value !== undefined) {
+        if (isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+          throw new Error('Höhe der Ladefläche muss positiv sein');
+        }
+        // Convert to number
+        req.body.kapazitaet.ladeflaeche.hoehe = parseFloat(value);
+      }
+      return true;
+    }),
   
   body('kapazitaet.ladegewicht')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Ladegewicht muss positiv sein'),
+    .custom((value, { req }) => {
+      // Only validate if kapazitaet exists
+      if (req.body.kapazitaet && value !== undefined) {
+        if (isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+          throw new Error('Ladegewicht muss positiv sein');
+        }
+        // Convert to number
+        req.body.kapazitaet.ladegewicht = parseFloat(value);
+      }
+      return true;
+    }),
   
   body('isActive')
     .optional()
@@ -116,8 +154,8 @@ const update = [
     .trim()
     .notEmpty()
     .withMessage('Kennzeichen darf nicht leer sein')
-    .matches(/^[A-ZÄÖÜ]{1,3}-[A-ZÄÖÜ]{1,2} [0-9]{1,4}$/)
-    .withMessage('Ungültiges Kennzeichen-Format (z.B. M-AB 1234)'),
+    .matches(/^[A-ZÄÖÜ]{1,3}-[A-ZÄÖÜ]{1,2} [0-9A-ZÄÖÜ]{1,6}$/)
+    .withMessage('Ungültiges Kennzeichen-Format (z.B. M-AB 1234 oder HH-MS 2023E)'),
   
   body('bezeichnung')
     .optional()
@@ -143,7 +181,8 @@ const update = [
   body('baujahr')
     .optional()
     .isInt({ min: 1950, max: new Date().getFullYear() })
-    .withMessage(`Baujahr muss zwischen 1950 und ${new Date().getFullYear()} liegen`),
+    .withMessage(`Baujahr muss zwischen 1950 und ${new Date().getFullYear()} liegen`)
+    .toInt(),
   
   body('anschaffungsdatum')
     .optional()
@@ -158,7 +197,8 @@ const update = [
   body('kilometerstand')
     .optional()
     .isInt({ min: 0 })
-    .withMessage('Kilometerstand muss eine positive Zahl sein'),
+    .withMessage('Kilometerstand muss eine positive Zahl sein')
+    .toInt(),
   
   body('naechsterService')
     .optional()
@@ -167,23 +207,59 @@ const update = [
   
   body('kapazitaet.ladeflaeche.laenge')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Länge der Ladefläche muss positiv sein'),
+    .custom((value, { req }) => {
+      // Only validate if kapazitaet and ladeflaeche exist
+      if (req.body.kapazitaet && req.body.kapazitaet.ladeflaeche && value !== undefined) {
+        if (isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+          throw new Error('Länge der Ladefläche muss positiv sein');
+        }
+        // Convert to number
+        req.body.kapazitaet.ladeflaeche.laenge = parseFloat(value);
+      }
+      return true;
+    }),
   
   body('kapazitaet.ladeflaeche.breite')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Breite der Ladefläche muss positiv sein'),
+    .custom((value, { req }) => {
+      // Only validate if kapazitaet and ladeflaeche exist
+      if (req.body.kapazitaet && req.body.kapazitaet.ladeflaeche && value !== undefined) {
+        if (isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+          throw new Error('Breite der Ladefläche muss positiv sein');
+        }
+        // Convert to number
+        req.body.kapazitaet.ladeflaeche.breite = parseFloat(value);
+      }
+      return true;
+    }),
   
   body('kapazitaet.ladeflaeche.hoehe')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Höhe der Ladefläche muss positiv sein'),
+    .custom((value, { req }) => {
+      // Only validate if kapazitaet and ladeflaeche exist
+      if (req.body.kapazitaet && req.body.kapazitaet.ladeflaeche && value !== undefined) {
+        if (isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+          throw new Error('Höhe der Ladefläche muss positiv sein');
+        }
+        // Convert to number
+        req.body.kapazitaet.ladeflaeche.hoehe = parseFloat(value);
+      }
+      return true;
+    }),
   
   body('kapazitaet.ladegewicht')
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Ladegewicht muss positiv sein'),
+    .custom((value, { req }) => {
+      // Only validate if kapazitaet exists
+      if (req.body.kapazitaet && value !== undefined) {
+        if (isNaN(parseFloat(value)) || parseFloat(value) < 0) {
+          throw new Error('Ladegewicht muss positiv sein');
+        }
+        // Convert to number
+        req.body.kapazitaet.ladegewicht = parseFloat(value);
+      }
+      return true;
+    }),
   
   body('isActive')
     .optional()
@@ -216,6 +292,7 @@ const updateKilometerstand = [
   body('kilometerstand')
     .isInt({ min: 0 })
     .withMessage('Kilometerstand muss eine positive Zahl sein')
+    .toInt()
 ];
 
 module.exports = {
