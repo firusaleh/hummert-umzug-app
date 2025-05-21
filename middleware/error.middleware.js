@@ -34,10 +34,28 @@ const handleJWTExpiredError = () => {
 };
 
 /**
+ * Log specific errors for certain routes to help debugging
+ */
+const logSpecificError = (err, req) => {
+  // Log Fahrzeug validation errors with more detail
+  if (req.originalUrl.includes('/fahrzeuge') && err.errors) {
+    console.log('⚠️ Fahrzeug Validation Error:', {
+      path: req.path,
+      method: req.method,
+      body: req.body,
+      errors: err.errors
+    });
+  }
+}
+
+/**
  * Main error handling middleware
  */
 module.exports = (err, req, res, next) => {
   console.log(err.stack);
+  
+  // Log specialized errors
+  logSpecificError(err, req);
 
   err.statusCode = err.statusCode || 500;
   

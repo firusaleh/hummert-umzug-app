@@ -142,10 +142,20 @@ const handleDuplicateKeyError = (err) => {
   const field = Object.keys(err.keyValue)[0];
   const value = err.keyValue[field];
   
+  // Customize error message for specific fields
+  let message = `Dieser Wert existiert bereits`;
+  let displayName = field;
+  
+  // Specific error for Fahrzeug kennzeichen
+  if (field === 'kennzeichen') {
+    message = `Dieses Kennzeichen ist bereits vergeben`;
+    displayName = 'Kennzeichen';
+  }
+  
   return new AppError(
-    `Der Wert '${value}' für '${field}' wird bereits verwendet.`,
+    `Der Wert '${value}' für '${displayName}' wird bereits verwendet.`,
     409, // Conflict status code
-    [{ field, message: `Dieser Wert existiert bereits` }]
+    [{ field, message }]
   );
 };
 

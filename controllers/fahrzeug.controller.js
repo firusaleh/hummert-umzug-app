@@ -89,6 +89,11 @@ exports.createFahrzeug = catchAsync(async (req, res) => {
     };
   }
   
+  // Initialize versicherung object if not present
+  if (!req.body.versicherung) {
+    req.body.versicherung = {};
+  }
+  
   // Get data from request
   const fahrzeugData = {
     ...req.body,
@@ -118,6 +123,11 @@ exports.updateFahrzeug = catchAsync(async (req, res) => {
     if (!req.body.kapazitaet.ladeflaeche) {
       req.body.kapazitaet.ladeflaeche = {};
     }
+  }
+  
+  // Initialize versicherung object if not present
+  if (req.body.versicherung) {
+    // Nothing to initialize here, just make sure it exists
   }
   
   // Get the vehicle to update
@@ -330,7 +340,7 @@ exports.uploadFahrzeugImage = catchAsync(async (req, res) => {
         size: req.file.size,
         category: 'Fahrzeug',
         description: `Fahrzeugbild: ${fahrzeug.kennzeichen}`,
-        uploadedBy: req.user.id,
+        uploadedBy: req.user?.id,
         relatedEntity: {
           type: 'Fahrzeug',
           id: fahrzeugId

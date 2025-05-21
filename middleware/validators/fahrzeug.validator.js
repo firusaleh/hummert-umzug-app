@@ -65,12 +65,14 @@ const create = [
   body('anschaffungsdatum')
     .optional()
     .isISO8601()
-    .withMessage('Anschaffungsdatum muss ein gültiges Datum sein'),
+    .withMessage('Anschaffungsdatum muss ein gültiges Datum sein')
+    .toDate(),
   
   body('tuev')
     .optional()
     .isISO8601()
-    .withMessage('TÜV-Datum muss ein gültiges Datum sein'),
+    .withMessage('TÜV-Datum muss ein gültiges Datum sein')
+    .toDate(),
   
   body('kilometerstand')
     .optional()
@@ -81,7 +83,8 @@ const create = [
   body('naechsterService')
     .optional()
     .isISO8601()
-    .withMessage('Datum für nächsten Service muss ein gültiges Datum sein'),
+    .withMessage('Datum für nächsten Service muss ein gültiges Datum sein')
+    .toDate(),
   
   body('kapazitaet.ladeflaeche.laenge')
     .optional()
@@ -138,6 +141,12 @@ const create = [
       }
       return true;
     }),
+  
+  body('versicherung.ablaufdatum')
+    .optional()
+    .isISO8601()
+    .withMessage('Ablaufdatum der Versicherung muss ein gültiges Datum sein')
+    .toDate(),
   
   body('isActive')
     .optional()
@@ -187,12 +196,14 @@ const update = [
   body('anschaffungsdatum')
     .optional()
     .isISO8601()
-    .withMessage('Anschaffungsdatum muss ein gültiges Datum sein'),
+    .withMessage('Anschaffungsdatum muss ein gültiges Datum sein')
+    .toDate(),
   
   body('tuev')
     .optional()
     .isISO8601()
-    .withMessage('TÜV-Datum muss ein gültiges Datum sein'),
+    .withMessage('TÜV-Datum muss ein gültiges Datum sein')
+    .toDate(),
   
   body('kilometerstand')
     .optional()
@@ -203,7 +214,8 @@ const update = [
   body('naechsterService')
     .optional()
     .isISO8601()
-    .withMessage('Datum für nächsten Service muss ein gültiges Datum sein'),
+    .withMessage('Datum für nächsten Service muss ein gültiges Datum sein')
+    .toDate(),
   
   body('kapazitaet.ladeflaeche.laenge')
     .optional()
@@ -260,6 +272,12 @@ const update = [
       }
       return true;
     }),
+  
+  body('versicherung.ablaufdatum')
+    .optional()
+    .isISO8601()
+    .withMessage('Ablaufdatum der Versicherung muss ein gültiges Datum sein')
+    .toDate(),
   
   body('isActive')
     .optional()
