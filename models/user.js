@@ -138,9 +138,16 @@ userSchema.pre('save', async function(next) {
 // Method to compare passwords
 userSchema.methods.comparePassword = async function(candidatePassword) {
   try {
-    // Need to select password explicitly since it has select: false
-    const user = await this.constructor.findById(this._id).select('+password');
-    return await bcrypt.compare(candidatePassword, user.password);
+    // If password field is already selected (as happens in login controller)
+    // we can just use it; otherwise, we need to fetch it
+    const password = this.password;
+    
+    if (!password) {
+      console.error('Passwortfeld fehlt im Benutzerobjekt');
+      return false;
+    }
+    
+    return await bcrypt.compare(candidatePassword, password);
   } catch (error) {
     console.error('Fehler beim Passwortvergleich:', error);
     return false;

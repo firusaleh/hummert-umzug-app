@@ -7,14 +7,25 @@ const crypto = require('crypto');
 
 // Create JWT Token with proper error handling
 const createToken = (user) => {
+  // Fallback to a development secret if JWT_SECRET is not set in env
+  const jwtSecret = process.env.JWT_SECRET || 'development_secret_key_replace_in_production';
+  
   if (!process.env.JWT_SECRET) {
-    throw new AppError('JWT_SECRET not configured', 500);
+    console.warn('WARNUNG: JWT_SECRET nicht definiert in Umgebungsvariablen! Verwende Fallback-Schlüssel.');
   }
   
+  // Convert Mongoose ObjectId to string for better compatibility
+  const userId = user._id.toString();
+  
   return jwt.sign(
-    { id: user._id, name: user.name, role: user.role }, 
-    process.env.JWT_SECRET, 
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    { 
+      id: userId, 
+      name: user.name, 
+      role: user.role,
+      email: user.email 
+    }, 
+    jwtSecret, 
+    { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
   );
 };
 
@@ -62,15 +73,27 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('Bitte E-Mail und Passwort angeben', 400));
   }
   
-  // Check if user exists && password is correct
+  console.log(`Login attempt for email: ${email}`);
+  
+  // Check if user exists
   const user = await User.findOne({ email }).select('+password');
   
-  if (!user || !(await user.comparePassword(password))) {
+  if (!user) {
+    console.log(`User not found: ${email}`);
+    return next(new AppError('Ungültige Anmeldedaten', 401));
+  }
+  
+  // Check if password is correct
+  const isPasswordCorrect = await user.comparePassword(password);
+  
+  if (!isPasswordCorrect) {
+    console.log(`Invalid password for user: ${email}`);
     return next(new AppError('Ungültige Anmeldedaten', 401));
   }
   
   // Check if user is active
   if (user.isActive === false) {
+    console.log(`Inactive account: ${email}`);
     return next(new AppError('Dieses Konto wurde deaktiviert', 401));
   }
   
@@ -78,6 +101,7 @@ exports.login = catchAsync(async (req, res, next) => {
   user.lastLogin = Date.now();
   await user.save({ validateBeforeSave: false });
   
+  console.log(`Successful login for: ${email}`);
   createSendToken(user, 200, res);
 });
 
