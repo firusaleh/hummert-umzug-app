@@ -49,9 +49,16 @@ const logSpecificError = (err, req) => {
 }
 
 /**
+ * Async error handler wrapper
+ */
+const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+/**
  * Main error handling middleware
  */
-module.exports = (err, req, res, next) => {
+const errorHandler = (err, req, res, next) => {
   console.log(err.stack);
   
   // Log specialized errors
@@ -75,3 +82,6 @@ module.exports = (err, req, res, next) => {
     sendErrorProd(error, res);
   }
 };
+
+module.exports = errorHandler;
+module.exports.asyncHandler = asyncHandler;

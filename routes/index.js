@@ -6,19 +6,19 @@ const fileController = require('../controllers/fileController');
 
 // Importieren der Routen mit korrekten Pfaden
 const authRoutes = require('./auth.routes');
-const userRoutes = require('./user');  // Geändert von './user.model' zu './user'
-const projectRoutes = require('./projekt'); // Ändern zu deinem tatsächlichen Dateinamen
+const userRoutes = require('./user.routes');  // Use proper user routes file
+const projectRoutes = require('./projekt'); 
 const taskRoutes = require('./task');
-const clientRoutes = require('./clients'); // Falls dies der richtige Dateiname ist
+const clientRoutes = require('./clients');
 const fileRoutes = require('./file');
-const umzugRoutes = require('./umzug.routes');
+const umzugRoutes = require('./umzuege.routes'); // Use proper umzuege routes file
 const aufnahmeRoutes = require('./aufnahme.routes');
 const mitarbeiterRoutes = require('./mitarbeiter.routes');
 const benachrichtigungRoutes = require('./benachrichtigung.routes');
 const uploadRoutes = require('./upload.routes');
-const zeiterfassungRoutes = require('./zeiterfassung.routes'); // Neue Route für Zeiterfassung
-const finanzenRoutes = require('./finanzen.routes'); // Neue Route für Finanzen
-const fahrzeugRoutes = require('./fahrzeug.routes'); // Neue Route für Fahrzeuge
+const zeiterfassungRoutes = require('./zeiterfassung.routes');
+const finanzenRoutes = require('./finanzen.routes');
+const fahrzeugRoutes = require('./fahrzeug.routes');
 
 // Health-Check-Route für API-Verfügbarkeitsprüfung
 router.get('/health', (req, res) => {
