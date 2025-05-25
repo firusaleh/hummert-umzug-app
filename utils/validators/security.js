@@ -95,7 +95,7 @@ const rateLimiters = {
   // General API rate limit
   general: rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per window
+    max: process.env.NODE_ENV === 'test' ? 1000 : 100, // More lenient in test mode
     message: 'Zu viele Anfragen von dieser IP, bitte versuchen Sie es später erneut.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -104,7 +104,7 @@ const rateLimiters = {
   // Strict rate limit for auth endpoints
   auth: rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 requests per window
+    max: process.env.NODE_ENV === 'test' ? 100 : 5, // More lenient in test mode
     message: 'Zu viele Anmeldeversuche, bitte versuchen Sie es später erneut.',
     standardHeaders: true,
     legacyHeaders: false,
