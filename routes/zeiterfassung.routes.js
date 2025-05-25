@@ -8,6 +8,12 @@ const validators = require('../middleware/validation');
 // Alle Routen benötigen Authentifizierung
 router.use(authMiddleware.auth);
 
+// GET /api/zeiterfassung - Get all time entries
+router.get(
+  '/',
+  zeiterfassungController.getAllZeiterfassungen
+);
+
 // GET /api/zeiterfassung/mitarbeiter - Mitarbeiter für Zeiterfassung abrufen
 router.get(
   '/mitarbeiter',

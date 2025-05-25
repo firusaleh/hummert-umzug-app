@@ -19,6 +19,7 @@ const configureSecurityMiddleware = require('./config/security');
 const { rateLimiters, corsOptions } = require('./utils/validators/security');
 const { startCleanupService } = require('./utils/token-cleanup');
 const { createNotFoundError } = require('./utils/error.utils');
+const { transformLegacyRequest, transformResponse } = require('./middleware/legacyFormat');
 
 // Create Express app
 const app = express();
@@ -80,6 +81,10 @@ app.get('/health', (req, res) => {
     uptime: process.uptime()
   });
 });
+
+// Apply legacy format middleware
+app.use('/api', transformLegacyRequest);
+app.use('/api', transformResponse);
 
 // API routes
 app.use('/api', routes);

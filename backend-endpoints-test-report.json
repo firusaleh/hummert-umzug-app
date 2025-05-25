@@ -1,0 +1,144 @@
+{
+  "timestamp": "2025-05-25T14:30:57.025Z",
+  "apiUrl": "http://localhost:5000/api",
+  "summary": {
+    "total": 22,
+    "passed": 22,
+    "failed": 0,
+    "successRate": "100.0%"
+  },
+  "endpoints": [
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "name": "Health check",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/",
+      "method": "GET",
+      "name": "API root",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/auth/register",
+      "method": "POST",
+      "name": "Registration validation",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/auth/login",
+      "method": "POST",
+      "name": "Login",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/auth/me",
+      "method": "GET",
+      "name": "Get profile",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/auth/check",
+      "method": "GET",
+      "name": "Check auth",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/umzuege",
+      "method": "POST",
+      "name": "Create Umzug",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/umzuege",
+      "method": "GET",
+      "name": "List Umzuege",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/umzuege/683329a0c734f8cb10ba34ef",
+      "method": "GET",
+      "name": "Get single Umzug",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/umzuege/683329a0c734f8cb10ba34ef",
+      "method": "PUT",
+      "name": "Update Umzug",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/mitarbeiter",
+      "method": "POST",
+      "name": "Create Mitarbeiter",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/mitarbeiter",
+      "method": "GET",
+      "name": "List Mitarbeiter",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/fahrzeuge",
+      "method": "POST",
+      "name": "Create Fahrzeug",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/fahrzeuge",
+      "method": "GET",
+      "name": "List Fahrzeuge",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/benachrichtigungen",
+      "method": "GET",
+      "name": "List notifications",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/zeiterfassung",
+      "method": "POST",
+      "name": "Create time entry",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/zeiterfassung",
+      "method": "GET",
+      "name": "List time entries",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/finanzen/angebote",
+      "method": "GET",
+      "name": "List Angebote",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/finanzen/rechnungen",
+      "method": "GET",
+      "name": "List Rechnungen",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/uploads",
+      "method": "GET",
+      "name": "List uploads",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/nonexistent",
+      "method": "GET",
+      "name": "404 handling",
+      "status": "passed"
+    },
+    {
+      "endpoint": "/umzuege",
+      "method": "GET",
+      "name": "Unauthorized access",
+      "status": "passed"
+    }
+  ]
+}

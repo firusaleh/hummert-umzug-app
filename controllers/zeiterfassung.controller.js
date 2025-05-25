@@ -2,6 +2,7 @@
 const Mitarbeiter = require('../models/mitarbeiter.model');
 const Umzug = require('../models/umzug.model');
 const Zeiterfassung = require('../models/zeiterfassung.model');
+const { catchAsync } = require('../utils/error.utils');
 
 // Mitarbeiter für Zeiterfassung abrufen
 exports.getMitarbeiterForZeiterfassung = async (req, res) => {
@@ -180,3 +181,33 @@ exports.deleteMitarbeiter = async (req, res) => {
     });
   }
 };
+// Get all time entries
+exports.getAllZeiterfassungen = catchAsync(async (req, res) => {
+  const { mitarbeiterId, datum, startDatum, endDatum } = req.query;
+  
+  const filter = {};
+  
+  if (mitarbeiterId) {
+    filter.mitarbeiterId = mitarbeiterId;
+  }
+  
+  if (datum) {
+    filter.datum = new Date(datum);
+  }
+  
+  if (startDatum || endDatum) {
+    filter.datum = {};
+    if (startDatum) filter.datum.$gte = new Date(startDatum);
+    if (endDatum) filter.datum.$lte = new Date(endDatum);
+  }
+  
+  const zeiterfassungen = await Zeiterfassung.find(filter)
+    .populate('mitarbeiterId', 'vorname nachname')
+    .sort({ datum: -1, startzeit: -1 });
+  
+  res.json({
+    success: true,
+    data: zeiterfassungen,
+    count: zeiterfassungen.length
+  });
+});

@@ -10,6 +10,46 @@ const {
   AppError 
 } = require('../utils/error.utils');
 
+// Transform legacy data format to new format
+const transformLegacyUmzugData = (data) => {
+  // Handle old format with 'kunde' instead of 'auftraggeber'
+  if (data.kunde && !data.auftraggeber) {
+    data.auftraggeber = data.kunde;
+    delete data.kunde;
+  }
+  
+  // Handle old format with 'datum' instead of 'startDatum/endDatum'
+  if (data.datum && !data.startDatum) {
+    data.startDatum = data.datum;
+    data.endDatum = data.datum;
+    delete data.datum;
+  }
+  
+  // Ensure hausnummer is present in addresses
+  if (data.auszugsadresse && !data.auszugsadresse.hausnummer) {
+    // Extract hausnummer from strasse if combined
+    const match = data.auszugsadresse.strasse?.match(/^(.+?)\s+(\d+\w*)$/);
+    if (match) {
+      data.auszugsadresse.strasse = match[1];
+      data.auszugsadresse.hausnummer = match[2];
+    } else {
+      data.auszugsadresse.hausnummer = '1'; // Default
+    }
+  }
+  
+  if (data.einzugsadresse && !data.einzugsadresse.hausnummer) {
+    const match = data.einzugsadresse.strasse?.match(/^(.+?)\s+(\d+\w*)$/);
+    if (match) {
+      data.einzugsadresse.strasse = match[1];
+      data.einzugsadresse.hausnummer = match[2];
+    } else {
+      data.einzugsadresse.hausnummer = '1'; // Default
+    }
+  }
+  
+  return data;
+};
+
 // Import or create pagination utilities
 const fs = require('fs');
 const path = require('path');
@@ -117,6 +157,8 @@ exports.getUmzugById = catchAsync(async (req, res) => {
 
 // Neuen Umzug erstellen
 exports.createUmzug = catchAsync(async (req, res) => {
+  // Transform legacy data format
+  req.body = transformLegacyUmzugData(req.body);
   // Validierungsfehler prüfen
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
