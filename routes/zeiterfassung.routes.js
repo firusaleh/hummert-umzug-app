@@ -14,6 +14,18 @@ router.get(
   zeiterfassungController.getAllZeiterfassungen
 );
 
+// GET /api/zeiterfassung/statistics - Get time tracking statistics
+router.get(
+  '/statistics',
+  zeiterfassungController.getStatistics
+);
+
+// GET /api/zeiterfassung/export - Export time entries
+router.get(
+  '/export',
+  zeiterfassungController.exportZeiterfassungen
+);
+
 // GET /api/zeiterfassung/mitarbeiter - Mitarbeiter für Zeiterfassung abrufen
 router.get(
   '/mitarbeiter',

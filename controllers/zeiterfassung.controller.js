@@ -183,12 +183,16 @@ exports.deleteMitarbeiter = async (req, res) => {
 };
 // Get all time entries
 exports.getAllZeiterfassungen = catchAsync(async (req, res) => {
-  const { mitarbeiterId, datum, startDatum, endDatum } = req.query;
+  const { mitarbeiterId, projektId, datum, startDatum, endDatum } = req.query;
   
   const filter = {};
   
   if (mitarbeiterId) {
     filter.mitarbeiterId = mitarbeiterId;
+  }
+  
+  if (projektId) {
+    filter.projektId = projektId;
   }
   
   if (datum) {
@@ -203,6 +207,7 @@ exports.getAllZeiterfassungen = catchAsync(async (req, res) => {
   
   const zeiterfassungen = await Zeiterfassung.find(filter)
     .populate('mitarbeiterId', 'vorname nachname')
+    .populate('projektId', 'auftraggeber startDatum')
     .sort({ datum: -1, startzeit: -1 });
   
   res.json({
@@ -210,4 +215,93 @@ exports.getAllZeiterfassungen = catchAsync(async (req, res) => {
     data: zeiterfassungen,
     count: zeiterfassungen.length
   });
+});
+
+// Get statistics
+exports.getStatistics = catchAsync(async (req, res) => {
+  const { startDatum, endDatum } = req.query;
+  
+  const filter = {};
+  if (startDatum || endDatum) {
+    filter.datum = {};
+    if (startDatum) filter.datum.$gte = new Date(startDatum);
+    if (endDatum) filter.datum.$lte = new Date(endDatum);
+  }
+  
+  // Get total hours
+  const totalHoursResult = await Zeiterfassung.aggregate([
+    { $match: filter },
+    { $group: { _id: null, totalHours: { $sum: '$arbeitsstunden' } } }
+  ]);
+  
+  const totalHours = totalHoursResult[0]?.totalHours || 0;
+  
+  // Get employee count
+  const employeeCount = await Zeiterfassung.distinct('mitarbeiterId', filter).length;
+  
+  // Get project count
+  const projectCount = await Zeiterfassung.distinct('projektId', filter).length;
+  
+  // Calculate productivity score (example: based on average hours per day)
+  const dayCount = startDatum && endDatum 
+    ? Math.ceil((new Date(endDatum) - new Date(startDatum)) / (1000 * 60 * 60 * 24))
+    : 30;
+  
+  const avgHoursPerDay = totalHours / dayCount;
+  const targetHoursPerDay = 8 * employeeCount; // Assuming 8 hours per employee per day
+  const productivityScore = Math.min(100, Math.round((avgHoursPerDay / targetHoursPerDay) * 100));
+  
+  res.json({
+    success: true,
+    data: {
+      totalHours,
+      employeeCount,
+      projectCount,
+      productivityScore,
+      avgHoursPerDay
+    }
+  });
+});
+
+// Export time entries
+exports.exportZeiterfassungen = catchAsync(async (req, res) => {
+  const { format = 'pdf', projektId, mitarbeiterId, startDatum, endDatum } = req.query;
+  
+  const filter = {};
+  if (projektId) filter.projektId = projektId;
+  if (mitarbeiterId) filter.mitarbeiterId = mitarbeiterId;
+  if (startDatum || endDatum) {
+    filter.datum = {};
+    if (startDatum) filter.datum.$gte = new Date(startDatum);
+    if (endDatum) filter.datum.$lte = new Date(endDatum);
+  }
+  
+  const zeiterfassungen = await Zeiterfassung.find(filter)
+    .populate('mitarbeiterId', 'vorname nachname')
+    .populate('projektId', 'auftraggeber')
+    .sort({ datum: -1, startzeit: -1 });
+  
+  // For now, return CSV format
+  if (format === 'csv') {
+    const csv = [
+      'Datum,Mitarbeiter,Projekt,Start,Ende,Pause,Stunden,Tätigkeit',
+      ...zeiterfassungen.map(z => 
+        `${new Date(z.datum).toLocaleDateString('de-DE')},` +
+        `${z.mitarbeiterId.vorname} ${z.mitarbeiterId.nachname},` +
+        `${z.projektId.auftraggeber?.name || 'Unbekannt'},` +
+        `${z.startzeit},${z.endzeit},${z.pause},${z.arbeitsstunden},` +
+        `"${z.taetigkeit}"`
+      )
+    ].join('\n');
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=zeiterfassung_${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } else {
+    // For PDF/Excel, you would implement appropriate libraries
+    res.status(501).json({
+      success: false,
+      message: `Export format ${format} not yet implemented`
+    });
+  }
 });
