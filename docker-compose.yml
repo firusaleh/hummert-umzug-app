@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+      - ./logs:/usr/src/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - hummert-network
+
+  # Optional: Add MongoDB if you want to run it locally
+  # mongodb:
+  #   image: mongo:7
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     - MONGO_INITDB_ROOT_USERNAME=admin
+  #     - MONGO_INITDB_ROOT_PASSWORD=password
+  #     - MONGO_INITDB_DATABASE=hummert
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   networks:
+  #     - hummert-network
+
+networks:
+  hummert-network:
+    driver: bridge
+
+# volumes:
+#   mongodb_data:
