@@ -33,7 +33,8 @@ const mitarbeiterSchemas = {
     email: validators.email
       .optional(),
     adresse: schemas.address
-      .optional(),
+      .required()
+      .messages({ 'any.required': 'Adresse ist erforderlich' }),
     position: validators.germanEnum(
       ['Geschäftsführer', 'Teamleiter', 'Träger', 'Fahrer', 'Praktikant', 'Verkäufer', 'Verwaltung'],
       'Position'
