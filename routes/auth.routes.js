@@ -8,6 +8,7 @@ const { auth: authValidation } = require('../middleware/validators');
 // Public routes with validation
 router.post('/register', authValidation.register, authController.register);
 router.post('/login', authValidation.login, authController.login);
+router.post('/refresh', authController.refreshToken);
 
 // Admin creation route (should be protected in production)
 router.post('/create-admin', authValidation.createAdmin, authController.createAdmin);

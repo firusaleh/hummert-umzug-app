@@ -5,10 +5,11 @@ const { AppError, catchAsync } = require('../utils/error.utils');
 const { sendEmail } = require('../utils/email');
 const crypto = require('crypto');
 
-// Create JWT Token with proper error handling
-const createToken = (user) => {
-  // Fallback to a development secret if JWT_SECRET is not set in env
+// Create JWT Tokens with proper error handling
+const createTokens = (user) => {
+  // Fallback to development secrets if not set in env
   const jwtSecret = process.env.JWT_SECRET || 'development_secret_key_replace_in_production';
+  const refreshSecret = process.env.JWT_REFRESH_SECRET || 'refresh_secret_key_change_in_production';
   
   if (!process.env.JWT_SECRET) {
     console.warn('WARNUNG: JWT_SECRET nicht definiert in Umgebungsvariablen! Verwende Fallback-Schlüssel.');
@@ -17,7 +18,7 @@ const createToken = (user) => {
   // Convert Mongoose ObjectId to string for better compatibility
   const userId = user._id.toString();
   
-  return jwt.sign(
+  const accessToken = jwt.sign(
     { 
       id: userId, 
       name: user.name, 
@@ -25,20 +26,34 @@ const createToken = (user) => {
       email: user.email 
     }, 
     jwtSecret, 
-    { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );
+
+  const refreshToken = jwt.sign(
+    { id: userId },
+    refreshSecret,
+    { expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d' }
+  );
+
+  return { accessToken, refreshToken };
 };
 
-// Create and send JWT token
+// Legacy function for backward compatibility
+const createToken = (user) => {
+  return createTokens(user).accessToken;
+};
+
+// Create and send JWT tokens
 const createSendToken = (user, statusCode, res) => {
-  const token = createToken(user);
+  const { accessToken, refreshToken } = createTokens(user);
   
   // Remove password from output
   user.password = undefined;
   
   res.status(statusCode).json({
     success: true,
-    token,
+    token: accessToken,
+    refreshToken,
     user
   });
 };
@@ -131,6 +146,36 @@ exports.checkAuth = catchAsync(async (req, res, next) => {
     success: true,
     user
   });
+});
+
+// Refresh token
+exports.refreshToken = catchAsync(async (req, res, next) => {
+  const { refreshToken } = req.body;
+  
+  if (!refreshToken) {
+    return next(new AppError('Refresh token required', 401));
+  }
+  
+  try {
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || 'refresh_secret_key_change_in_production';
+    const decoded = jwt.verify(refreshToken, refreshSecret);
+    
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (!user) {
+      return next(new AppError('Invalid refresh token', 401));
+    }
+    
+    const { accessToken, refreshToken: newRefreshToken } = createTokens(user);
+    
+    res.json({
+      success: true,
+      token: accessToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    return next(new AppError('Invalid refresh token', 401));
+  }
 });
 
 // Create admin user (protected route)
