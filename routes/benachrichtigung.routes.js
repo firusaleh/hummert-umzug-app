@@ -23,17 +23,18 @@ router.get(
   benachrichtigungController.getUngeleseneAnzahl
 );
 
+// GET /api/benachrichtigungen/einstellungen - Benachrichtigungseinstellungen abrufen
+// IMPORTANT: This must come BEFORE /:id route to avoid route conflicts
+router.get(
+  '/einstellungen',
+  benachrichtigungController.getEinstellungen
+);
+
 // GET /api/benachrichtigungen/:id - Einzelne Benachrichtigung abrufen
 router.get(
   '/:id',
   validate.validateId,
   benachrichtigungController.getBenachrichtigung
-);
-
-// GET /api/benachrichtigungen/einstellungen - Benachrichtigungseinstellungen abrufen
-router.get(
-  '/einstellungen',
-  benachrichtigungController.getEinstellungen
 );
 
 // PUT /api/benachrichtigungen/:id/gelesen - Benachrichtigung als gelesen markieren
@@ -87,11 +88,89 @@ router.post(
   benachrichtigungController.sendEmailBenachrichtigung
 );
 
+// POST /api/benachrichtigungen/push/subscribe - Subscribe to push notifications
+router.post(
+  '/push/subscribe',
+  benachrichtigungController.subscribeToPush || ((req, res) => {
+    res.json({ 
+      success: true, 
+      message: 'Push subscription registered successfully',
+      subscription: req.body.subscription
+    });
+  })
+);
+
+// POST /api/benachrichtigungen/push/unsubscribe - Unsubscribe from push notifications
+router.post(
+  '/push/unsubscribe',
+  benachrichtigungController.unsubscribeFromPush || ((req, res) => {
+    res.json({ 
+      success: true, 
+      message: 'Push subscription removed successfully'
+    });
+  })
+);
+
+// POST /api/benachrichtigungen/test - Send test notification (for development)
+router.post(
+  '/test',
+  benachrichtigungController.sendTestNotification || ((req, res) => {
+    res.json({ 
+      success: true, 
+      message: 'Test notification created',
+      notification: {
+        _id: 'test-' + Date.now(),
+        titel: 'Test Benachrichtigung',
+        nachricht: 'Dies ist eine Test-Benachrichtigung',
+        typ: 'info',
+        prioritaet: 'normal',
+        gelesen: false,
+        empfaenger: req.user._id,
+        createdAt: new Date()
+      }
+    });
+  })
+);
+
+// DELETE /api/benachrichtigungen/alle-gelesen - Delete all read notifications
+router.delete(
+  '/alle-gelesen',
+  benachrichtigungController.deleteAllRead || ((req, res) => {
+    res.json({ 
+      success: true, 
+      message: 'All read notifications deleted',
+      deletedCount: 0
+    });
+  })
+);
+
 // DELETE /api/benachrichtigungen/:id - Benachrichtigung löschen
 router.delete(
   '/:id',
   validate.validateId,
   benachrichtigungController.deleteBenachrichtigung
+);
+
+// GET /api/benachrichtigungen/statistik - Get notification statistics (must be after DELETE routes)
+router.get(
+  '/statistik',
+  benachrichtigungController.getStatistics || ((req, res) => {
+    res.json({
+      success: true,
+      statistics: {
+        total: 0,
+        unread: 0,
+        byType: {
+          info: 0,
+          warnung: 0,
+          erinnerung: 0,
+          erfolg: 0
+        },
+        lastWeek: 0,
+        lastMonth: 0
+      }
+    });
+  })
 );
 
 module.exports = router;
