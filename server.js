@@ -72,6 +72,31 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   }
 }));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'Hummert Umzug API Server',
+    version: '1.0.0',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    documentation: {
+      health: '/health',
+      api: '/api',
+      endpoints: {
+        auth: '/api/auth',
+        umzuege: '/api/umzuege',
+        mitarbeiter: '/api/mitarbeiter',
+        aufnahmen: '/api/aufnahmen',
+        fahrzeuge: '/api/fahrzeuge',
+        finanzen: '/api/finanzen',
+        benachrichtigungen: '/api/benachrichtigungen',
+        zeiterfassung: '/api/zeiterfassung'
+      }
+    },
+    frontend: 'https://www.lagerlogix.de'
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
